@@ -4,6 +4,7 @@ import time
 from constants import *
 from grid import Grid
 from snake import Snake
+from apple import Apple
 
 
 class App:
@@ -12,23 +13,30 @@ class App:
         self.surface = pygame.display.set_mode(WINDOW_RES)
         self.clock = pygame.time.Clock()
 
-        self.time_prev = time.time()
-        self.speed = 5
-        self.snakeDirection = -1
+        self.time_prev = time.time() # For creating a timer
+        self.speed = 5  # speed of the "game"
+        self.snakeDirection = -1    # "stop" in default
 
         self.grid = Grid(self.surface)
         self.snake = Snake(self.surface)
+        self.apple = Apple(self.surface)
+        self.apple.randPos()
 
+    def reset(self):
+        # Reset the Snake
+        exit()
 
     def run(self):
+        # Filling in black
         self.surface.fill(pygame.Color(CL_BLACK))
-
+        # Main loop
         while True:
 
             for event in pygame.event.get():
+                # Exit
                 if event.type == pygame.QUIT:
-                    exit()
-
+                    exit() # Exit button
+                # Snake controll by arrow buttons
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_UP:
                         self.snakeDirection = 0
@@ -38,18 +46,28 @@ class App:
                         self.snakeDirection = 2
                     elif event.key == pygame.K_LEFT:
                         self.snakeDirection = 3
-
-
+            # Moving the snake with timeout (timeout = 1 / "gameSpeed")
             if (time.time() - self.time_prev) > 1 / self.speed:
                 self.snake.setDirection(self.snakeDirection)
                 self.snake.moveForward()
                 self.time_prev = time.time()
+                # Check the death
+                if self.snake.getStatus() == 1:
+                    self.reset()
+                # Check the eating
+                if self.snake.getPos() == self.apple.getPos():
+                    self.snake.eatingApple()
+                    self.apple.randPos()
+
+            # Drawing
             self.grid.draw()
+            self.apple.draw()
             self.snake.draw()
             pygame.display.flip()
             self.clock.tick(FPS)
 
 
 if __name__ == "__main__":
+    # Start there!
     app = App()
     app.run()

@@ -4,10 +4,12 @@ from constants import *
 
 class Grid:
     def __init__(self, surface):
+        # To draw from this file
         self.surface = surface
 
 
     def draw(self):
+        # Drawing grid
         for x in range(GRID_RES[0]):
             for y in range(GRID_RES[1]):
                 pygame.draw.rect(self.surface, CL_GRAY,
