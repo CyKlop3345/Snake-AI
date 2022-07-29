@@ -58,6 +58,7 @@ class App:
                 if self.snake.getPos() == self.apple.getPos():
                     self.snake.eatingApple()
                     self.apple.randPos()
+                    self.speed += 0.25
 
             # Drawing
             self.grid.draw()
