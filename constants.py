@@ -1,6 +1,7 @@
 
 FPS = 60
 
+E_constant = 2.718
 # Size of cells in the grid
 CELL_SIZE = 25
 WINDOW_RES = 1000, 1000

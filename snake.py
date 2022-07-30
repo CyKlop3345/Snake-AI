@@ -20,15 +20,6 @@ class Snake:
         self.isDied = 0
 
 
-    def setDirection(self, direction):
-        # look diference between prev and next value of direction
-        # left-right or up-down will give an exception
-        if (self.direction%2 == direction%2 and self.direction != -1):
-            return
-        # successful changing
-        self.direction = direction
-
-
     def moveForward(self):
         # Look exception
         if self.direction == -1:
@@ -46,18 +37,15 @@ class Snake:
             self.pos[0][1] += 1;
         elif self.direction == 3:
             self.pos[0][0] -= 1;
-
-        self.isDied = 0
         # Check for the death
-            # self-eating
-        for i in range(1, self.length):
-            if self.pos[0] == self.pos[i]:
-                self.isDied = 1
-                print("!!!")
-            # Barrier check
-        if self.pos[0][0] < 0 or self.pos[0][0] > GRID_RES[0]-1 or self.pos[0][1] < 0 or self.pos[0][1] > GRID_RES[1]-1:
-            self.isDied = 1
-            print("!!!!!!!!!")
+        self.checkDeath()
+
+
+    def turn(self, turnDirection):
+        # -1 -- left (local)
+        # +1 -- right
+        # 0  -- pass
+        self.direction += turnDirection
 
 
     def draw(self):
@@ -71,12 +59,32 @@ class Snake:
                             (pos[0]*CELL_SIZE +1, pos[1]*CELL_SIZE +1, CELL_SIZE-2, CELL_SIZE-2))
 
 
+    def setDirection(self, direction):
+        # look diference between prev and next value of direction
+        # left-right or up-down will give an exception
+        if (self.direction%2 == direction%2 and self.direction != -1):
+            return
+        # successful changing
+        self.direction = direction
+
+
     def getPos(self):
         return self.pos[0]
 
 
     def getStatus(self):
         return self.isDied
+
+
+    def checkDeath(self):
+        # Check for the death
+            # self-eating
+        for i in range(1, self.length):
+            if self.pos[0] == self.pos[i]:
+                self.isDied = 1
+            # Barrier check
+        if self.pos[0][0] < 0 or self.pos[0][0] > GRID_RES[0]-1 or self.pos[0][1] < 0 or self.pos[0][1] > GRID_RES[1]-1:
+            self.isDied = 1
 
 
     def eatingApple(self):

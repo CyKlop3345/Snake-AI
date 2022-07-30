@@ -14,7 +14,7 @@ class App:
         self.clock = pygame.time.Clock()
 
         self.time_prev = time.time() # For creating a timer
-        self.speed = 5  # speed of the "game"
+        self.speed = 4  # speed of the "game"
         self.snakeDirection = -1    # "stop" in default
 
         self.grid = Grid(self.surface)
@@ -22,9 +22,11 @@ class App:
         self.apple = Apple(self.surface)
         self.apple.randPos()
 
+
     def reset(self):
         # Reset the Snake
         exit()
+
 
     def run(self):
         # Filling in black
@@ -51,15 +53,14 @@ class App:
                 self.snake.setDirection(self.snakeDirection)
                 self.snake.moveForward()
                 self.time_prev = time.time()
-                # Check the death
+                # Check for the death
                 if self.snake.getStatus() == 1:
                     self.reset()
-                # Check the eating
+                # Check for the eating
                 if self.snake.getPos() == self.apple.getPos():
                     self.snake.eatingApple()
                     self.apple.randPos()
                     self.speed += 0.25
-
             # Drawing
             self.grid.draw()
             self.apple.draw()
