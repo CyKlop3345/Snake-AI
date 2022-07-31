@@ -5,6 +5,7 @@ from constants import *
 from grid import Grid
 from snake import Snake
 from apple import Apple
+from AI import AI
 
 
 class App:
@@ -20,12 +21,20 @@ class App:
         self.grid = Grid(self.surface)
         self.snake = Snake(self.surface)
         self.apple = Apple(self.surface)
-        self.apple.randPos()
+        self.AI = AI()
+        self.AI.setSnakeControl(self.snake)
+        self.AI.addApple(self.apple)
 
 
     def reset(self):
         # Reset the Snake
-        exit()
+        self.snake.__init__(self.surface)
+        self.apple.__init__(self.surface)
+
+        self.time_prev = time.time()
+        self.speed = 4
+        self.snakeDirection = -1
+        # exit()
 
 
     def run(self):
@@ -48,10 +57,12 @@ class App:
                         self.snakeDirection = 2
                     elif event.key == pygame.K_LEFT:
                         self.snakeDirection = 3
+
             # Moving the snake with timeout (timeout = 1 / "gameSpeed")
             if (time.time() - self.time_prev) > 1 / self.speed:
                 self.snake.setDirection(self.snakeDirection)
                 self.snake.moveForward()
+                # self.AI.run()
                 self.time_prev = time.time()
                 # Check for the death
                 if self.snake.getStatus() == 1:

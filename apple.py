@@ -9,6 +9,7 @@ class Apple:
         self.surface = surface
         # Default state is [-1,-1]
         self.pos = [-1,-1]
+        self.randPos()
 
 
     def getPos(self):
