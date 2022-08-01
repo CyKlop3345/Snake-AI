@@ -68,8 +68,11 @@ class Snake:
         self.direction = direction
 
 
-    def getPos(self):
+    def getHeadPos(self):
         return self.pos[0]
+
+    def getSegmPos(self):
+        return self.pos
 
 
     def getStatus(self):

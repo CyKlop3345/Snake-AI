@@ -16,7 +16,7 @@ class App:
 
         self.time_prev = time.time() # For creating a timer
         self.speed = 4  # speed of the "game"
-        self.snakeDirection = -1    # "stop" in default
+        self.snakeNewDirection = -1    # "stop" in default
 
         self.grid = Grid(self.surface)
         self.snake = Snake(self.surface)
@@ -33,7 +33,7 @@ class App:
 
         self.time_prev = time.time()
         self.speed = 4
-        self.snakeDirection = -1
+        self.snakeNewDirection = -1
         # exit()
 
 
@@ -50,17 +50,17 @@ class App:
                 # Snake controll by arrow buttons
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_UP:
-                        self.snakeDirection = 0
+                        self.snakeNewDirection = 0
                     elif event.key == pygame.K_RIGHT:
-                        self.snakeDirection = 1
+                        self.snakeNewDirection = 1
                     elif event.key == pygame.K_DOWN:
-                        self.snakeDirection = 2
+                        self.snakeNewDirection = 2
                     elif event.key == pygame.K_LEFT:
-                        self.snakeDirection = 3
+                        self.snakeNewDirection = 3
 
             # Moving the snake with timeout (timeout = 1 / "gameSpeed")
             if (time.time() - self.time_prev) > 1 / self.speed:
-                self.snake.setDirection(self.snakeDirection)
+                self.snake.setDirection(self.snakeNewDirection)
                 self.snake.moveForward()
                 # self.AI.run()
                 self.time_prev = time.time()
@@ -68,7 +68,7 @@ class App:
                 if self.snake.getStatus() == 1:
                     self.reset()
                 # Check for the eating
-                if self.snake.getPos() == self.apple.getPos():
+                if self.snake.getHeadPos() == self.apple.getPos():
                     self.snake.eatingApple()
                     self.apple.randPos()
                     self.speed += 0.25

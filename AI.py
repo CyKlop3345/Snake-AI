@@ -1,5 +1,4 @@
 from constants import *
-import random
 import numpy
 
 from snake import Snake
@@ -8,8 +7,6 @@ from apple import Apple
 
 class AI:
     def __init__(self):
-        random.seed()
-
         self.apples = []
         # Neurons count
         self.neuronCount_in = 8 # 4 -- danger detector
@@ -47,25 +44,25 @@ class AI:
 
 
     def calculate_Layer_input(self):
-        snakePos = self.snake.getPos()
+        snakePos = self.snake.getHeadPos()
         # Reset input layer
         for i in range(self.neuronCount_in):
             self.layer_input[i] = 0
         # Check for dangerous (self segments or boundary)
         for offset in range(5, 0, -1):
             # Self segments
-            for snakeSegment in self.snake.pos:
+            for snakeSegment in self.snake.getSegmPos():
                 # Left
                 if [snakePos[0] - offset, snakePos[1]] == snakeSegment:
                     self.layer_input[0] = max(self.layer_input[0], 6 - offset)
                 # Right
-                if [snakePos[0] + offset, snakePos[1]] == snakeSegment:
+                elif [snakePos[0] + offset, snakePos[1]] == snakeSegment:
                     self.layer_input[1] = max(self.layer_input[1], 6 - offset)
                 # Up
-                if [snakePos[0], snakePos[1] - offset] == snakeSegment:
+                elif [snakePos[0], snakePos[1] - offset] == snakeSegment:
                     self.layer_input[2] = max(self.layer_input[2], 6 - offset)
                 # Down
-                if [snakePos[0], snakePos[1] + offset] == snakeSegment:
+                elif [snakePos[0], snakePos[1] + offset] == snakeSegment:
                     self.layer_input[3] = max(self.layer_input[3], 6 - offset)
 
             # Boundary
@@ -106,36 +103,19 @@ class AI:
             self.layer_input[5] = 1
 
 
-    # Testing function (maybe numpy is the better way)
-    '''
-    def matrixMultiply(self, matrix_A, matrix_B):
-        columns_A = len(matrix_A[0])
-        rows_B = len(matrix_B)
-        # columns_A and rows_B must be equal
-        if columns_A != rows_B:
-            print("Wrong matrixes")
-            return [-1]
-
-        rows_AC = len(matrix_A)
-        columns_BC = len(matrix_B[0])
-        matrix_C = [[0 for j in range(columns_BC)] for i in range(rows_AC)]
-        for i in range(rows_AC):
-            for j in range(columns_BC):
-                for k in range(columns_A):
-                    matrix_C[i][j] += matrix_A[i][k] * matrix_B[k][j]
-        return matrix_C
-    '''
-
-
     def sigmoid(self, x):
-    # sigmoid function return number from 0 to 1
+    # Sigmoid function return number from 0 to 1
+    # For 1-dim arrays
         for i in range(len(x)):
             x[i] = 1 / (1 + (E_constant ** x[i]))
         return x
+    # For integers
         # return 1 / (1 + (E_constant ** x))
-        # x == 0    => y = 0.5
-        # x -> inf  => y -> 1
-        # x -> -inf => y -> 0
+    ''' Hint
+    x == 0    => y = 0.5
+    x -> inf  => y -> 1
+    x -> -inf => y -> 0
+    '''
 
 
     def setSnakeControl(self, snake):
@@ -152,6 +132,7 @@ class AI:
 
 if __name__ == "__main__":
     ai = AI()
+    # Blank. Can't use show() functions
     ai.setSnakeControl(Snake(0))
     ai.addApple(Apple(0))
     ai.run()
