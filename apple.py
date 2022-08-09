@@ -1,5 +1,6 @@
 import pygame
 from random import randint
+import numpy as np
 
 from constants import *
 
@@ -8,7 +9,7 @@ class Apple:
         # To draw from this file
         self.surface = surface
         # Default state is [-1,-1]
-        self.pos = [-1,-1]
+        self.pos = np.array([-1,-1])
         self.randPos()
 
 
