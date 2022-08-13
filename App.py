@@ -12,34 +12,43 @@ from AI import AI
 class App:
     def __init__(self):
         pygame.init()
+
         # System settings
-        self.surface = pygame.display.set_mode(WINDOW_RES)
-        self.surface.fill(pygame.Color(CL_BLACK)) # Filling in black
+        self.screen = pygame.display.set_mode(RES)          # main screen
+        self.surf_back = pygame.Surface((RES_workspace))    # background (grid)
+        self.surf_front = pygame.Surface((RES_workspace), pygame.SRCALPHA, 32)   # front (snake, aplles)
+        self.surf_front.set_colorkey((0,0,0))               # all black will be transport into transparent
+        self.surf_aiVisual = pygame.Surface((RES_aiVisual)) # side surface (ai visualization)
+
         self.clock = pygame.time.Clock()
-        self.image_count = 0
-        self.RUNNING_AI = 1#  l f r bf lr    l f r
+        self.image_count = 0            # num of current image for saving
         self.time_prev = time.time()    # For creating a timer
+
         # "Game" settings
+        self.RUNNING_AI = 1
         self.speed_init = 5             # start speed of the "game"
         self.speed = self.speed_init    # current speed of the "game"
         self.snakeNewDirection = -1     # "stop" in default
+
         # Objects
-        self.grid = Grid(self.surface)
-        self.snake = Snake(self.surface)
+        self.grid = Grid(self.surf_back)
+        self.snake = Snake(self.surf_front)
         self.apples = []
-        for i in range(1):              # count of apples
-            self.apples.append(Apple(self.surface))
+        for i in range(1):  # count of apples
+            self.apples.append(Apple(self.surf_front))
         self.snake.setApples(self.apples)
         self.AI = AI()
 
 
     def reset(self):
         exit()
-        # Reset the Snake
-        self.snake.__init__(self.surface)
+        # Reset App
+        # Objects
+        self.snake.__init__(self.surf_front)
         for apple in self.apples:
-            apple.__init__(self.surface)
+            apple.__init__(self.surf_front)
 
+        # Settings
         self.time_prev = time.time()
         self.speed = self.speed_init
         self.snakeNewDirection = -1
@@ -78,6 +87,7 @@ class App:
             # Drawing and saving
             self.draw()
             # self.save_screen()
+            self.clock.tick(FPS)
 
 
     def get_imput(self):
@@ -86,8 +96,10 @@ class App:
             if event.type == pygame.QUIT:
                 exit() # Exit button
             if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    exit()
                 # Snake controll by arrow buttons (only if self.RUNNING_AI == 0)
-                if event.key == pygame.K_UP:
+                elif event.key == pygame.K_UP:
                     self.snakeNewDirection = 0
                 elif event.key == pygame.K_RIGHT:
                     self.snakeNewDirection = 1
@@ -101,13 +113,20 @@ class App:
 
 
     def draw(self):
-        # Drawing
+
+        self.surf_front.fill((0,0,0,0))
+
         self.grid.draw()
         for apple in self.apples:
             apple.draw()
         self.snake.draw()
-        pygame.display.flip()
-        self.clock.tick(FPS)
+
+        self.surf_back.blit(self.surf_front, (RES_aiVisual[0], 0))
+        self.screen.blits(( (self.surf_back, (RES_aiVisual[0], 0)),
+                            (self.surf_aiVisual, (0, 0)) ))
+
+
+        pygame.display.update()
 
 
     def save_screen(self):
