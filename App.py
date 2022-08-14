@@ -11,6 +11,7 @@ from AI import AI
 
 class App:
     def __init__(self):
+
         pygame.init()
 
         # System settings
@@ -37,7 +38,8 @@ class App:
         for i in range(1):  # count of apples
             self.apples.append(Apple(self.surf_front))
         self.snake.setApples(self.apples)
-        self.AI = AI()
+        self.AI = AI(self.surf_aiVisual)
+        self.AI.set_draw_property()
 
 
     def reset(self):
@@ -121,7 +123,7 @@ class App:
             apple.draw()
         self.snake.draw()
 
-        self.surf_back.blit(self.surf_front, (RES_aiVisual[0], 0))
+        self.surf_back.blit(self.surf_front, (0, 0))
         self.screen.blits(( (self.surf_back, (RES_aiVisual[0], 0)),
                             (self.surf_aiVisual, (0, 0)) ))
 

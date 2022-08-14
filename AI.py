@@ -1,8 +1,10 @@
 from constants import *
+
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import random
+import pygame
 
 from snake import Snake
 from apple import Apple
@@ -45,23 +47,30 @@ activ_func_deriv = sigmoid_deriv
 
 
 class AI:
-    def __init__(self):
-        # Training speed (CONST)
+    def __init__(self, surface):
+
+        # surface for drawing
+        self.surface = surface
+
+        # Will generate new matrixes randomly (1) or get them from the file (0)
         RANDOM_ARRAYS = 1
+
         # Training coefficient (CONST)
         self.ALPHA = 0.1
-        # Mistakes (graphics)
+
+        # Mistakes (for plotting)
         self.mist_count = 0
         self.answer_count = 0
         self.mists_prop = np.array([])
         self.mists = np.array([])
         self.mists_corteg = np.array([])
+
         # Neurons count (CONST)
-        self.C_IN = 5   # 3 -- danger detector
-                        # 2 -- apple direction
+        self.C_IN = 5   # 3 -- danger detector  (left, forward, right)
+                        # 2 -- apple direction  (forward_or_backwrd, left_or_right)
         self.C_H1 = 12
         self.C_H2 = 10
-        self.C_OUT = 3  # 4 next direction
+        self.C_OUT = 3  # 3 next direction (turning left, right or step forward)
 
         # Layers of Neurons (vector)
         self.l_in = np.zeros((1, self.C_IN))
@@ -82,6 +91,7 @@ class AI:
         self.s_h1_h2 = None
         self.s_h2_out = None
 
+        # Randomization matrixes
         if __name__ == "__main__":
             if RANDOM_ARRAYS == 1:
                 # Random matrixes
@@ -96,6 +106,7 @@ class AI:
                 self.load_data()
         else:
             self.load_data()
+
         # Mistakes
         self.m_h1 = np.zeros((1, self.C_H1))
         self.m_h2 = np.zeros((1, self.C_H2))
@@ -103,18 +114,26 @@ class AI:
 
 
     def run(self, _in):
+        # Use AI for choosing next step
+        # using input data
+
+        # Setting input layer
         self.l_in = np.array(_in).reshape(1,len(_in))
-        # calculate output
+        # Calculate output
         self.forward()
         # Choosing commad
         self.choice = np.argmax(self.l_out)
 
 
     def training(self, _in, _out):
-        # setting in and out arrays
+        # AI training
+        # using input and correct output data
+        # (the correct output data is knows)
+
+        # setting in and correct out layers
         self.l_in = np.array(_in).reshape(1,len(_in))
         self.l_out_right = np.array(_out).reshape(1,len(_out))
-
+        # Calculate output, finding mistakes and correction matrixes
         self.forward()
         self.choice = np.argmax(self.l_out)
         self.backward()
@@ -148,16 +167,28 @@ class AI:
         self.s_h2_out -= self.ALPHA * np.sum(self.m_out, axis=0, keepdims=True)
 
 
+    def get_choice(self):
+        # Get choice from the other source
+        # " -1 "    -- modification
+        # that convert (0, 1, 2) output array
+        # into (-1, 0, 1)
+        # Turning:
+        # -1 --  left, 1 -- right
+        return self.choice-1
+
+
     def mutate(self):
         # Random mutate
-        # Delta
+
+        # Difference of changed matrixes (Random, but small value)
         self.W_in_h1_mutate = np.random.uniform(-0.1, 0.1, self.W_in_h1.shape)
         self.s_in_h1_mutate = np.random.uniform(-0.1, 0.1, self.s_in_h1)
         self.W_h1_h2_mutate = np.random.uniform(-0.1, 0.1, self.W_h1_h2)
         self.s_h1_h2_mutate = np.random.uniform(-0.1, 0.1, self.s_h1_h2)
         self.W_h2_out_mutate = np.random.uniform(-0.1, 0.1, self.W_h2_out)
         self.s_h2_out_mutate = np.random.uniform(-0.1, 0.1, self.s_h2_out)
-        # New weight
+
+        # New matrixes (prev matrixes plus difference)
         self.W_in_h1 += self.W_in_h1_mutate
         self.s_in_h1 += self.s_in_h1_mutate
         self.W_h1_h2 += self.W_h1_h2_mutate
@@ -166,11 +197,12 @@ class AI:
         self.s_h2_out += self.s_h2_out_mutate
 
 
-    def mutete_select(self, prev_score, cur_score):  # score = collected_apple_count ^2 / time
+    def mutete_select(self, prev_score, cur_score):
+        # score = collected_apple_count ^2 / time
         if (cur_score > prev_score):
             # Save mutation
             return
-        # Undo changes
+        # Undo matrixes change
         self.W_in_h1 -= self.W_in_h1_mutate
         self.s_in_h1 -= self.s_in_h1_mutate
         self.W_h1_h2 -= self.W_h1_h2_mutate
@@ -250,6 +282,7 @@ class AI:
         np.savez("Arrays", self.W_in_h1, self.W_h1_h2, self.W_h2_out,
                            self.s_in_h1, self.s_h1_h2, self.s_h2_out)
 
+
     def load_data(self):
         # load matrixes from the file
         file = np.load('Arrays.npz')
@@ -261,16 +294,71 @@ class AI:
         self.s_h2_out = file['arr_5']
 
 
-    def get_choice(self):
-        return self.choice-1
+    def set_draw_property(self):
+        # Nodes property
+        # node_distance = [20, 10] # distance between nodes (x, y)
+
+        offset = [140, 60]               # offset between nodes (x, y)
+        offset_start = [40,40]          # offset between first node and left-up corner (x, y)
+        offset_layer = [210,0,60,270]   # centering of the layers
+
+        self.node_pos = np.array((  np.zeros((self.C_IN, 2), dtype=int),
+                                    np.zeros((self.C_H1, 2), dtype=int),
+                                    np.zeros((self.C_H2, 2), dtype=int),
+                                    np.zeros((self.C_OUT, 2), dtype=int)  ))
+
+        '''
+        self.node_pos[i]        -- layer (in, h1, h2, out)
+        self.node_pos[i][j]     -- node coordinates
+        self.node_pos[i][j,0]  -- node x-coordinate
+        self.node_pos[i][j,1]  -- node y-coordinate
+        '''
+
+        self.node_pos[0][:,0] = offset_start[0]
+        self.node_pos[0][:,1] = np.arange(self.C_IN) * offset[1] + offset_start[1] + offset_layer[0]
+
+        self.node_pos[1][:,0] = offset[0] + offset_start[0]
+        self.node_pos[1][:,1] = np.arange(self.C_H1) * offset[1] + offset_start[1] + offset_layer[1]
+
+        self.node_pos[2][:,0] = offset[0] * 2 + offset_start[0]
+        self.node_pos[2][:,1] = np.arange(self.C_H2) * offset[1] + offset_start[1] + offset_layer[2]
+
+        self.node_pos[3][:,0] = offset[0] * 3 + offset_start[0]
+        self.node_pos[3][:,1] = np.arange(self.C_OUT) * offset[1] + offset_start[1] + offset_layer[3]
+        print(self.node_pos)
+
+        self.node_size = 20
+        # Color of nodes
+        self.node_cl_inactive = (255,255,255)   # 0 (white)
+        self.node_cl_active = (0,0,255)         # 1 (blue)
+
+        # Connections propert
+        self.con_cl_inactive = (255,0,0)    # -1 (red)
+        self.con_cl_active = (0,255,0)      # 1 (green)
+
+        # Drawing connections
+        for i in range(3):                          # cont of layers minus 1
+            for node_1 in self.node_pos[i]:         # "from" layer
+                for node_2 in self.node_pos[i+1]:   # "to" layer
+                    pygame.draw.line(self.surface, self.con_cl_inactive,
+                                     node_1, node_2, 1)
+
+        # Drawing nodes
+        for layer in self.node_pos:
+            for node in layer:
+                pygame.draw.circle(self.surface, self.node_cl_inactive,
+                                    node, self.node_size)
 
 
-    def draw(self):
+
+
+    def draw_update(self):
         pass
 
 
 if __name__ == "__main__":
-    ai = AI()
+    ai = AI(None)
+    # ai.set_draw_property()
                     # barrier|apple | choice            (l -- left, f -- forward, r -- right)
                     #  l f r bf lr    l f r
     train_array = [ ( (0,0,0, 0, 0), (1,1,1) ), # Good
@@ -359,26 +447,28 @@ if __name__ == "__main__":
     '''
 
     # Training
-    # '''
+    '''
     num_iterat = 10000
     # 10k -- ~ 60 sec ~ -- works
     # 100k -- ~ 10 min ~
-    # 1 million -- ~ 1-2 hours ~ -- perfectly, but train long time
+    # 1 million -- ~ 1-2 hours ~ -- perfectly, but train for a long time
     for i in range(num_iterat):
-        random.shuffle(train_array)
+        random.shuffle(train_array) # mising training array
+
         for set in train_array:
             ai.training(set[0], set[1])
-            # For graphics (mists, propotion)
+            # Plotting (mists, propotion)
             if i % (num_iterat//1000) == 0:
                 ai.calc_mist()
                 ai.calc_mist_propotion()
-        # For graphics (mist_corteges)
+
+        # Plotting (mist_corteges (average value of mistakes for array))
         if i % (num_iterat//1000) == 0:
-            print(f'{100*i/num_iterat :.1f} %')     # Traning comletion percentages
+            print(f'{100*i/num_iterat :.1f} %')     # Traning completion percentages
             ai.calc_mist_corteg(len(train_array))
 
     ai.show_graphics()
-    # '''
+    '''
 
     # ai.show_data()
     # ai.save_data()
