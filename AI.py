@@ -2,9 +2,9 @@ from constants import *
 
 import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib.animation as animation
 import random
 import pygame
+from pathlib import Path
 
 from snake import Snake
 from apple import Apple
@@ -53,7 +53,7 @@ class AI:
         self.surface = surface
 
         # Will generate new matrixes randomly (1) or get them from the file (0)
-        RANDOM_ARRAYS = 1
+        RANDOM_ARRAYS = 0
 
         # Training coefficient (CONST)
         self.ALPHA = 0.1
@@ -68,8 +68,8 @@ class AI:
         # Neurons count (CONST)
         self.C_IN = 5   # 3 -- danger detector  (left, forward, right)
                         # 2 -- apple direction  (forward_or_backwrd, left_or_right)
-        self.C_H1 = 12
-        self.C_H2 = 10
+        self.C_H1 = 6
+        self.C_H2 = 4
         self.C_OUT = 3  # 3 next direction (turning left, right or step forward)
 
         # Layers of Neurons (vector)
@@ -91,21 +91,26 @@ class AI:
         self.s_h1_h2 = None
         self.s_h2_out = None
 
-        # Randomization matrixes
-        if __name__ == "__main__":
-            if RANDOM_ARRAYS == 1:
-                # Random matrixes
-                self.W_in_h1 = np.random.uniform(-1, 1, (self.C_IN, self.C_H1))
-                self.W_h1_h2 = np.random.uniform(-1, 1, (self.C_H1, self.C_H2))
-                self.W_h2_out = np.random.uniform(-1, 1, (self.C_H2, self.C_OUT))
+        # File to collect arrays (with marks about layers size)
+        self.arrays_filename = f"Arrays_{self.C_IN}_{self.C_H1}_{self.C_H2}_{self.C_OUT}"
+        self.arrays_dir = Path.cwd() / 'Arrays_Data'
+        self.arrays_path = self.arrays_dir / self.arrays_filename
+        if not self.arrays_dir.is_dir():
+            self.arrays_dir.mkdir()
 
-                self.s_in_h1 = np.random.uniform(-1, 1, (1, self.C_H1))
-                self.s_h1_h2 = np.random.uniform(-1, 1, (1, self.C_H2))
-                self.s_h2_out = np.random.uniform(-1, 1, (1, self.C_OUT))
-            else:
-                self.load_data()
-        else:
+        # Check file exists
+        if (self.arrays_path.with_suffix(".npz")).is_file():
+            # load weights and shifts data from the file
             self.load_data()
+        else:
+            # Randomization weights and shifts
+            self.W_in_h1 = np.random.uniform(-1, 1, (self.C_IN, self.C_H1))
+            self.W_h1_h2 = np.random.uniform(-1, 1, (self.C_H1, self.C_H2))
+            self.W_h2_out = np.random.uniform(-1, 1, (self.C_H2, self.C_OUT))
+
+            self.s_in_h1 = np.random.uniform(-1, 1, (1, self.C_H1))
+            self.s_h1_h2 = np.random.uniform(-1, 1, (1, self.C_H2))
+            self.s_h2_out = np.random.uniform(-1, 1, (1, self.C_OUT))
 
         # Mistakes
         self.m_h1 = np.zeros((1, self.C_H1))
@@ -169,11 +174,13 @@ class AI:
 
     def get_choice(self):
         # Get choice from the other source
-        # " -1 "    -- modification
+        # " -1 "    -- individual modification
         # that convert (0, 1, 2) output array
         # into (-1, 0, 1)
-        # Turning:
-        # -1 --  left, 1 -- right
+        #
+        # -1 -- turn left,
+        # 1  -- turn right
+        # 0  -- go forfard
         return self.choice-1
 
 
@@ -199,6 +206,7 @@ class AI:
 
     def mutete_select(self, prev_score, cur_score):
         # score = collected_apple_count ^2 / time
+        # Select the better of non-mutated and mutated matrixes
         if (cur_score > prev_score):
             # Save mutation
             return
@@ -279,13 +287,16 @@ class AI:
 
     def save_data(self):
         # Save matrixes into the file
-        np.savez("Arrays", self.W_in_h1, self.W_h1_h2, self.W_h2_out,
-                           self.s_in_h1, self.s_h1_h2, self.s_h2_out)
+        np.savez(self.arrays_path,
+                    self.W_in_h1, self.W_h1_h2, self.W_h2_out,
+                    self.s_in_h1, self.s_h1_h2, self.s_h2_out)
 
 
     def load_data(self):
         # load matrixes from the file
-        file = np.load('Arrays.npz')
+        # file_path = f"{self.arrays_dir}\{self.arrays_filename}.npz"
+
+        file = np.load(self.arrays_path.with_suffix(".npz"))
         self.W_in_h1 = file['arr_0']
         self.W_h1_h2 = file['arr_1']
         self.W_h2_out = file['arr_2']
@@ -298,9 +309,16 @@ class AI:
         # Nodes property
         # node_distance = [20, 10] # distance between nodes (x, y)
 
-        offset = [140, 60]               # offset between nodes (x, y)
+        layers_sizes = [self.C_IN, self.C_H1, self.C_H2, self.C_OUT]
+        layer_size_large = max(layers_sizes)
+
+        offset = [140, 60]              # offset between nodes (x, y)
         offset_start = [40,40]          # offset between first node and left-up corner (x, y)
-        offset_layer = [210,0,60,270]   # centering of the layers
+
+        offset_layer = []               # centering of the layers
+        for size in layers_sizes:
+            offset_layer.append((layer_size_large - size) * 30)
+
 
         self.node_pos = np.array((  np.zeros((self.C_IN, 2), dtype=int),
                                     np.zeros((self.C_H1, 2), dtype=int),
@@ -313,47 +331,55 @@ class AI:
         self.node_pos[i][j,0]  -- node x-coordinate
         self.node_pos[i][j,1]  -- node y-coordinate
         '''
-
+        # in layer
         self.node_pos[0][:,0] = offset_start[0]
         self.node_pos[0][:,1] = np.arange(self.C_IN) * offset[1] + offset_start[1] + offset_layer[0]
-
+        # h1 layer
         self.node_pos[1][:,0] = offset[0] + offset_start[0]
         self.node_pos[1][:,1] = np.arange(self.C_H1) * offset[1] + offset_start[1] + offset_layer[1]
-
+        # h2 layer
         self.node_pos[2][:,0] = offset[0] * 2 + offset_start[0]
         self.node_pos[2][:,1] = np.arange(self.C_H2) * offset[1] + offset_start[1] + offset_layer[2]
-
+        # out layer
         self.node_pos[3][:,0] = offset[0] * 3 + offset_start[0]
         self.node_pos[3][:,1] = np.arange(self.C_OUT) * offset[1] + offset_start[1] + offset_layer[3]
-        print(self.node_pos)
 
         self.node_size = 20
-        # Color of nodes
-        self.node_cl_inactive = (255,255,255)   # 0 (white)
-        self.node_cl_active = (0,0,255)         # 1 (blue)
-
-        # Connections propert
-        self.con_cl_inactive = (255,0,0)    # -1 (red)
-        self.con_cl_active = (0,255,0)      # 1 (green)
 
         # Drawing connections
-        for i in range(3):                          # cont of layers minus 1
-            for node_1 in self.node_pos[i]:         # "from" layer
-                for node_2 in self.node_pos[i+1]:   # "to" layer
-                    pygame.draw.line(self.surface, self.con_cl_inactive,
-                                     node_1, node_2, 1)
+        weights = [sigmoid(self.W_in_h1), sigmoid(self.W_h1_h2), sigmoid(self.W_h2_out)]
+        for layer in range(3):                          # cont of layers minus 1
+            for node_1 in range(layers_sizes[layer]):         # "from" layer
+                for node_2 in range(layers_sizes[layer+1]):   # "to" layer
+                    value = weights[layer][node_1][node_2]
+                    # if value <= 0.4:
+                    #     color = (255,0,0)
+                    # elif value > 0.6:
+                    #     color = (0,255,0)
+                    # else:
+                    #     color = (255,255,255)
+                    color = CL_conect_active * value + CL_conect_inactive * (1-value)
+                    pygame.draw.line(self.surface, color,
+                                     self.node_pos[layer][node_1], self.node_pos[layer+1][node_2], 2)
 
         # Drawing nodes
-        for layer in self.node_pos:
-            for node in layer:
-                pygame.draw.circle(self.surface, self.node_cl_inactive,
-                                    node, self.node_size)
-
-
+        for layer in range(4):
+            for node in range(layers_sizes[layer]):
+                pygame.draw.circle(self.surface, CL_node_inactive,
+                                    self.node_pos[layer][node], self.node_size)
 
 
     def draw_update(self):
-        pass
+        # Drawing nodes
+        layers_sizes = [self.C_IN, self.C_H1, self.C_H2, self.C_OUT]
+        layers = [(self.l_in+1)/2, self.l_h1, self.l_h2, self.l_out]
+        layers[0][0,:3] -= 0.5
+        for layer in range(4):
+            for node in range(layers_sizes[layer]):
+                value = layers[layer][0,node]
+                color = CL_node_active * value + CL_node_inactive * (1-value)
+                pygame.draw.circle(self.surface, color,
+                                    self.node_pos[layer][node], self.node_size)
 
 
 if __name__ == "__main__":
@@ -447,28 +473,27 @@ if __name__ == "__main__":
     '''
 
     # Training
-    '''
+    # '''
     num_iterat = 10000
-    # 10k -- ~ 60 sec ~ -- works
-    # 100k -- ~ 10 min ~
-    # 1 million -- ~ 1-2 hours ~ -- perfectly, but train for a long time
+    # may works even with a small iterat number (100-1k)
+    # byt larger number will works better
     for i in range(num_iterat):
         random.shuffle(train_array) # mising training array
 
         for set in train_array:
             ai.training(set[0], set[1])
             # Plotting (mists, propotion)
-            if i % (num_iterat//1000) == 0:
+            if i % (num_iterat/1000) == 0:
                 ai.calc_mist()
                 ai.calc_mist_propotion()
 
         # Plotting (mist_corteges (average value of mistakes for array))
-        if i % (num_iterat//1000) == 0:
+        if i % (num_iterat/1000) == 0:
             print(f'{100*i/num_iterat :.1f} %')     # Traning completion percentages
             ai.calc_mist_corteg(len(train_array))
 
     ai.show_graphics()
-    '''
 
     # ai.show_data()
-    # ai.save_data()
+    ai.save_data()
+    # '''

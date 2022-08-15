@@ -20,6 +20,7 @@ class App:
         self.surf_front = pygame.Surface((RES_workspace), pygame.SRCALPHA, 32)   # front (snake, aplles)
         self.surf_front.set_colorkey((0,0,0))               # all black will be transport into transparent
         self.surf_aiVisual = pygame.Surface((RES_aiVisual)) # side surface (ai visualization)
+        self.surf_aiVisual.fill(CL_BACK)
 
         self.clock = pygame.time.Clock()
         self.image_count = 0            # num of current image for saving
@@ -43,7 +44,7 @@ class App:
 
 
     def reset(self):
-        exit()
+        # exit()
         # Reset App
         # Objects
         self.snake.__init__(self.surf_front)
@@ -74,6 +75,7 @@ class App:
                 input_layer = self.snake.get_input_layer()
                 self.AI.run(input_layer)
                 direction = self.AI.get_choice()
+                self.AI.draw_update()
                 self.snake.turn(direction)
                 self.snake.moveForward()
 
@@ -89,7 +91,7 @@ class App:
             # Drawing and saving
             self.draw()
             # self.save_screen()
-            self.clock.tick(FPS)
+            self.clock.tick(60)#FPS
 
 
     def get_imput(self):
@@ -127,7 +129,6 @@ class App:
         self.screen.blits(( (self.surf_back, (RES_aiVisual[0], 0)),
                             (self.surf_aiVisual, (0, 0)) ))
 
-
         pygame.display.update()
 
 
@@ -135,7 +136,7 @@ class App:
         # Saving images of the screen (slower)
         if not os.path.isdir(r"Pictures\Snake"):
             os.makedirs(r"Pictures\Snake")
-        pygame.image.save(self.surface, os.path.join('Pictures\Snake',f'snake-{self.image_count}.png'))
+        pygame.image.save(self.screen, os.path.join('Pictures\Snake',f'snake-{self.image_count}.png'))
         self.image_count += 1
 
 

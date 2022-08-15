@@ -1,5 +1,6 @@
+import numpy as np
 
-FPS = 60
+FPS = 144
 
 E_constant = 2.718
 # Size of cells in the grid
@@ -20,3 +21,13 @@ CL_BLACK = '#000000'
 CL_GRAY = '#121212'
     # Apple
 CL_RED = '#cd2a4b'
+    # Background
+CL_BACK = (20,16,16)
+
+    # nodes
+CL_node_inactive = np.array((96,64,64)) # 0
+CL_node_active = np.array((233,233,255)) # 1
+
+# Connections colors
+CL_conect_inactive = np.array((255,64,0)) # -1
+CL_conect_active = np.array((0,191,255)) # 1
