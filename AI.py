@@ -95,7 +95,7 @@ class AI:
         self.arrays_filename = f"Arrays_{self.C_IN}_{self.C_H1}_{self.C_H2}_{self.C_OUT}"
         self.arrays_dir = Path.cwd() / 'Arrays_Data'
         self.arrays_path = self.arrays_dir / self.arrays_filename
-        if not self.arrays_dir.is_dir():
+        if not self.arrays_dir.is_dir():    # create folders
             self.arrays_dir.mkdir()
 
         # Check file exists

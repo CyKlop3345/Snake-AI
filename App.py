@@ -1,6 +1,6 @@
 import pygame
 import time
-import os
+from pathlib import Path
 
 from constants import *
 from grid import Grid
@@ -14,7 +14,7 @@ class App:
 
         pygame.init()
 
-        # System settings
+        # Screen and urface
         self.screen = pygame.display.set_mode(RES)          # main screen
         self.surf_back = pygame.Surface((RES_workspace))    # background (grid)
         self.surf_front = pygame.Surface((RES_workspace), pygame.SRCALPHA, 32)   # front (snake, aplles)
@@ -22,9 +22,15 @@ class App:
         self.surf_aiVisual = pygame.Surface((RES_aiVisual)) # side surface (ai visualization)
         self.surf_aiVisual.fill(CL_BACK)
 
+
         self.clock = pygame.time.Clock()
-        self.image_count = 0            # num of current image for saving
         self.time_prev = time.time()    # For creating a timer
+
+        # Saving settings
+        self.image_path = Path.cwd() / "Pictures\Snake"
+        if not self.image_path.is_dir():    # create folders
+            self.image_path.mkdir()
+        self.image_count = 0            # num of current image for saving
 
         # "Game" settings
         self.RUNNING_AI = 1
@@ -134,9 +140,7 @@ class App:
 
     def save_screen(self):
         # Saving images of the screen (slower)
-        if not os.path.isdir(r"Pictures\Snake"):
-            os.makedirs(r"Pictures\Snake")
-        pygame.image.save(self.screen, os.path.join('Pictures\Snake',f'snake-{self.image_count}.png'))
+        pygame.image.save(self.screen, self.image_path / f'snake-{self.image_count}.png')
         self.image_count += 1
 
 
