@@ -1,6 +1,6 @@
 Data for AI with different layers size is collected here.
-The most usefull layers sizes is:
-5-6-4-3
+AI can work even with next layer sizes:
+5-2-2-3
 
 Input (first) and output (last) layer sizes is constant
 Middle layers are hidden and may be changed

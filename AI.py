@@ -2,7 +2,6 @@ from constants import *
 
 import numpy as np
 import matplotlib.pyplot as plt
-import random
 import pygame
 from pathlib import Path
 
@@ -91,8 +90,8 @@ class AI:
         # Neurons count (CONST)
         self.C_IN = 5   # 3 -- danger detector  (left, forward, right)
                         # 2 -- apple direction  (forward_or_backwrd, left_or_right)
-        self.C_H1 = 6
-        self.C_H2 = 4
+        self.C_H1 = 2
+        self.C_H2 = 2
         self.C_OUT = 3  # 3 next direction (turning left, right or step forward)
 
         # Layers of Neurons (vector)
@@ -149,8 +148,9 @@ class AI:
         self.l_in = np.array(_in).reshape(1,len(_in))
         # Calculate output
         self.forward()
-        # Choosing commad
-        self.choice = np.argmax(self.l_out)
+        # Choosing commad based on probability
+        # self.choice = np.random.choice([-1,0,1], p=self.l_out[0])
+        self.choice = np.argmax(self.l_out)-1
 
 
     def training(self, _in, _out):
@@ -204,7 +204,7 @@ class AI:
         # -1 -- turn left,
         # 1  -- turn right
         # 0  -- go forfard
-        return self.choice-1
+        return self.choice
 
 
     def get_output(self):
@@ -538,7 +538,7 @@ if __name__ == "__main__":
                     ]
 
     # Testing
-    '''
+    # '''
     for set in train_array:
         ai.run(set[0])
 
@@ -586,6 +586,6 @@ if __name__ == "__main__":
 
     ai.show_data()
     ai.save_data()
-    # '''
+    '''
     # ai.show_graphics()
     # ai.show_data()

@@ -24,7 +24,7 @@ class App:
 
 
         self.clock = pygame.time.Clock()
-        self.time_prev = time.time()    # For creating a timer
+        # self.time_prev = time.time()    # For creating a timer
 
         # Saving settings
         self.image_path = Path.cwd() / "Pictures\Snake"
@@ -58,7 +58,7 @@ class App:
             apple.__init__(self.surf_front)
 
         # Settings
-        self.time_prev = time.time()
+        # self.time_prev = time.time()
         self.speed = self.speed_init
         self.snakeNewDirection = -1
 
@@ -97,7 +97,7 @@ class App:
             # Drawing and saving
             self.draw()
             # self.save_screen()
-            self.clock.tick(60)#FPS
+            self.clock.tick(FPS)
 
 
     def get_imput(self):
