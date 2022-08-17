@@ -10,6 +10,16 @@ from snake import Snake
 from apple import Apple
 
 
+def softmax(x):
+    out = np.exp(x)
+    sum = np.sum(out)
+    return out / sum
+
+
+def cross_entropy(l_out, l_out_right):
+    return -np.sum(l_out_right * np.log(l_out))
+
+
 def sigmoid(x):
     ''' Hint
     x == 0    => y = 0.5
@@ -58,12 +68,14 @@ class AI:
         # Training coefficient (CONST)
         self.ALPHA = 0.1
 
-        # Mistakes (for plotting)
-        self.mist_count = 0
-        self.answer_count = 0
-        self.mists_prop = np.array([])
-        self.mists = np.array([])
-        self.mists_corteg = np.array([])
+        # Mistakes (plotting)
+        # Different types of mistakes analysis
+        # plot 1: Square difference
+        self.mists_sq = np.array([])
+        self.mists_sq_corteg = np.array([])
+        # plot 2: Cross Entropy
+        self.mists_entr = np.array([])
+        self.mists_entr_corteg = np.array([])
 
         # Neurons count (CONST)
         self.C_IN = 5   # 3 -- danger detector  (left, forward, right)
@@ -152,7 +164,7 @@ class AI:
         self.l_h2_row = self.l_h1_row @ self.W_h1_h2 + self.s_h1_h2
         self.l_h2 = activ_func(self.l_h2_row)
         self.l_out_row = self.l_h2_row @ self.W_h2_out + self.s_h2_out
-        self.l_out = activ_func(self.l_out_row)
+        self.l_out = softmax(self.l_out_row)
 
 
     def backward(self):
@@ -182,6 +194,12 @@ class AI:
         # 1  -- turn right
         # 0  -- go forfard
         return self.choice-1
+
+
+    def get_output(self):
+        # Get output layer values
+        # after softmax function
+        return self.l_out
 
 
     def mutate(self):
@@ -219,59 +237,66 @@ class AI:
         self.s_h2_out -= self.s_h2_out_mutate
 
 
-    def calc_mist(self):
+    def calc_mist_sq(self):
         mist = 0
         for m in self.m_out[0]:
             mist += m ** 2
-        self.mists = np.append(self.mists, mist)
+        self.mists_sq = np.append(self.mists_sq, mist)
 
 
-    def calc_mist_corteg(self, last_count):
+    def calc_mists_entr(self):
+        E = cross_entropy(self.l_out, self.l_out_right)
+        self.mists_entr = np.append(self.mists_entr, E)
+
+
+    def calc_mist_corteg(self, mists, corteg, last_count):
+        # mists: array of mists
+        # corteg: corteg array
+
         mist = 0
         for i in range(last_count):
-            mist += self.mists[-i-1]
+            mist += mists[-i-1]
         mist /= last_count
-        self.mists_corteg = np.append(self.mists_corteg, mist)
-
-
-    def calc_mist_propotion(self):
-        self.answer_count += 1
-        if self.l_out_right[0,self.choice] == 0:
-            self.mist_count += 1
-        mist_prop = self.mist_count / self.answer_count
-        self.mists_prop = np.append(self.mists_prop, mist_prop)
+        corteg = np.append(corteg, mist)
+        return corteg
 
 
     def show_graphics(self):
             # Graphics
             figure, axes = plt.subplots(2)
             plt.title('Mistakes')
-            # First graphic (count of mistake)
-            axes[0].plot(self.mists, 'r.', markeredgewidth = 0)
-            axes[0].plot([len(train_array)+i*len(train_array) for i in range(len(self.mists_corteg))], self.mists_corteg, 'b.', markeredgewidth = 0)
+            # First graphic (square analysis)
+            axes[0].plot(self.mists_sq_corteg, 'r.', markeredgewidth = 0)
 
-            axes[0].text(0.02, 0.94, f"start={'%.3f' % self.mists_corteg[0]}",
+            axes[0].text(0.02, 0.94, f"start={'%.3f' % self.mists_sq_corteg[0]}",
                 color = 'white', transform=axes[0].transAxes,
                 bbox={'facecolor': 'blue', 'alpha': 0.85, 'pad': 4})
-            axes[0].text(0.25, 0.94, f"end={'%.3f' % self.mists_corteg[-1]}",
+            axes[0].text(0.25, 0.94, f"end={'%.3f' % self.mists_sq_corteg[-1]}",
                 color = 'white', transform=axes[0].transAxes,
                 bbox={'facecolor': 'blue', 'alpha': 0.85, 'pad': 4})
-            axes[0].text(0.02, 0.78, f"min={'%.3f' % self.mists_corteg.min()}",
+            axes[0].text(0.02, 0.78, f"min={'%.3f' % self.mists_sq_corteg.min()}",
                 color = 'white', transform=axes[0].transAxes,
                 bbox={'facecolor': 'blue', 'alpha': 0.85, 'pad': 4})
-            axes[0].text(0.25, 0.78, f"max={'%.3f' % self.mists_corteg.max()}",
+            axes[0].text(0.25, 0.78, f"max={'%.3f' % self.mists_sq_corteg.max()}",
                 color = 'white', transform=axes[0].transAxes,
                 bbox={'facecolor': 'blue', 'alpha': 0.85, 'pad': 4})
 
-            # Second graphics (mist-answer property)
-            axes[1].plot(self.mists_prop, 'g.', markeredgewidth = 0)
+            # Second graphics (entropy analysis)
+            axes[1].plot(self.mists_entr_corteg, 'c.', markeredgewidth = 0)
 
-            axes[1].text(0.02, 0.94, f"answers={self.answer_count}",
+            axes[1].text(0.02, 0.94, f"start={'%.3f' % self.mists_entr_corteg[0]}",
                 color = 'white', transform=axes[1].transAxes,
-                bbox={'facecolor': 'green', 'alpha': 0.85, 'pad': 4})
-            axes[1].text(0.35, 0.94, f"mistakes={self.mist_count}",
+                bbox={'facecolor': 'blue', 'alpha': 0.85, 'pad': 4})
+            axes[1].text(0.25, 0.94, f"end={'%.3f' % self.mists_entr_corteg[-1]}",
                 color = 'white', transform=axes[1].transAxes,
-                bbox={'facecolor': 'green', 'alpha': 0.85, 'pad': 4})
+                bbox={'facecolor': 'blue', 'alpha': 0.85, 'pad': 4})
+            axes[1].text(0.02, 0.78, f"min={'%.3f' % self.mists_entr_corteg.min()}",
+                color = 'white', transform=axes[1].transAxes,
+                bbox={'facecolor': 'blue', 'alpha': 0.85, 'pad': 4})
+            axes[1].text(0.25, 0.78, f"max={'%.3f' % self.mists_entr_corteg.max()}",
+                color = 'white', transform=axes[1].transAxes,
+                bbox={'facecolor': 'blue', 'alpha': 0.85, 'pad': 4})
+
             # Showing
             plt.show()
 
@@ -383,36 +408,37 @@ class AI:
 
 
 if __name__ == "__main__":
+    np.set_printoptions(precision=2, suppress=True)
     ai = AI(None)
     # ai.set_draw_property()
                     # barrier|apple | choice            (l -- left, f -- forward, r -- right)
                     #  l f r bf lr    l f r
-    train_array = [ ( (0,0,0, 0, 0), (1,1,1) ), # Good
+    train_array = [ ( (0,0,0, 0, 0), (0.33,0.33,0.33) ), # Good
 
                     ( (0,0,0, 1, 0), (0,1,0) ), # Good
-                    ( (0,0,0, 1, 1), (0,1,1) ), # Good
+                    ( (0,0,0, 1, 1), (0,0.5,0.5) ), # Good
                     ( (0,0,0, 0, 1), (0,0,1) ), # Good
                     ( (0,0,0,-1, 1), (0,0,1) ), # Good
-                    ( (0,0,0,-1, 0), (1,0,1) ), # Good
+                    ( (0,0,0,-1, 0), (0.5,0,0.5) ), # Good
                     ( (0,0,0,-1,-1), (1,0,0) ), # Good
                     ( (0,0,0, 0,-1), (1,0,0) ), # Good
-                    ( (0,0,0, 1,-1), (1,1,0) ), # Good
+                    ( (0,0,0, 1,-1), (0.5,0.5,0) ), # Good
                     #  l f r bf lr    l f r
-                    ( (0,1,0, 0, 0), (1,0,1) ), # Good
+                    ( (0,1,0, 0, 0), (0.5,0,0.5) ), # Good
 
-                    ( (0,1,0, 1, 0), (1,0,1) ), # Good
+                    ( (0,1,0, 1, 0), (0.5,0,0.5) ), # Good
                     ( (0,1,0, 1, 1), (0,0,1) ), # Good
                     ( (0,1,0, 0, 1), (0,0,1) ), # Good
                     ( (0,1,0,-1, 1), (0,0,1) ), # Good
-                    ( (0,1,0,-1, 0), (1,0,1) ), # Good
+                    ( (0,1,0,-1, 0), (0.5,0,0.5) ), # Good
                     ( (0,1,0,-1,-1), (1,0,0) ), # Good
                     ( (0,1,0, 0,-1), (1,0,0) ), # Good
                     ( (0,1,0, 1,-1), (1,0,0) ), # Good
                     #  l f r bf lr    l f r
-                    ( (1,0,0, 0, 0), (0,1,1) ), # Good
+                    ( (1,0,0, 0, 0), (0,0.5,0.5) ), # Good
 
                     ( (1,0,0, 1, 0), (0,1,0) ), # Good
-                    ( (1,0,0, 1, 1), (0,1,1) ), # Good
+                    ( (1,0,0, 1, 1), (0,0.5,0.5) ), # Good
                     ( (1,0,0, 0, 1), (0,0,1) ), # Good
                     ( (1,0,0,-1, 1), (0,0,1) ), # Good
                     ( (1,0,0,-1, 0), (0,0,1) ), # Good
@@ -420,7 +446,7 @@ if __name__ == "__main__":
                     ( (1,0,0, 0,-1), (0,1,0) ), # Good
                     ( (1,0,0, 1,-1), (0,1,0) ), # Good
                     #  l f r bf lr    l f r
-                    ( (0,0,1, 0, 0), (1,1,0) ), # Good
+                    ( (0,0,1, 0, 0), (0.5,0.5,0) ), # Good
 
                     ( (0,0,1, 1, 0), (0,1,0) ), # Good
                     ( (0,0,1, 1, 1), (0,1,0) ), # Good
@@ -429,7 +455,7 @@ if __name__ == "__main__":
                     ( (0,0,1,-1, 0), (1,0,0) ), # Good
                     ( (0,0,1,-1,-1), (1,0,0) ), # Good
                     ( (0,0,1, 0,-1), (1,0,0) ), # Good
-                    ( (0,0,1, 1,-1), (1,1,0) ), # Good
+                    ( (0,0,1, 1,-1), (0.5,0.5,0) ), # Good
                     #  l f r bf lr    l f r
                     ( (1,1,0, 0, 0), (0,0,1) ), # Good
 
@@ -466,34 +492,45 @@ if __name__ == "__main__":
                     ]
 
     # Testing
-    '''
+    # '''
     for set in train_array:
         ai.run(set[0])
-        print(f"input: {set[0]}\noutput: {set[1]}\nchoice: {ai.get_choice()}\n")
-    '''
+        if set[1][ai.get_choice()+1] == 0:
+            print("!!!!!          There is a fall                   !!!!!")
+        E = cross_entropy(ai.get_output(), set[1])
+        if E >= 0.2:
+            print("!!!            There is a big mistake            !!!")
+        print(  f"input: {set[0]}\n"
+                f"output: {set[1]}\n"
+                f"prob: {ai.get_output()}\n"
+                f"choice: {ai.get_choice()}\n"
+                f"E: {E :.2f}\n"
+                )
 
+    '''
     # Training
-    # '''
-    num_iterat = 3000
+
+    num_iterat = 10000
     # may works even with a small iterat number (100-1k)
     # byt larger number will works better
     for i in range(num_iterat):
-        random.shuffle(train_array) # mising training array
+        # random.shuffle(train_array) # mising training array
 
         for set in train_array:
             ai.training(set[0], set[1])
             # Plotting (mists, propotion)
-            if i % (num_iterat/1000) == 0:
-                ai.calc_mist()
-                ai.calc_mist_propotion()
+            if i % (num_iterat/10000) == 0:
+                ai.calc_mist_sq()
+                ai.calc_mists_entr()
 
         # Plotting (mist_corteges (average value of mistakes for array))
-        if i % (num_iterat/1000) == 0:
-            print(f'{100*i/num_iterat :.1f} %')     # Traning completion percentages
-            ai.calc_mist_corteg(len(train_array))
+        if i % (num_iterat/10000) == 0:
+            print(f'{100*i/num_iterat :.2f} %')     # Traning completion percentages
+            ai.mists_sq_corteg = ai.calc_mist_corteg(ai.mists_sq, ai.mists_sq_corteg, len(train_array))
+            ai.mists_entr_corteg = ai.calc_mist_corteg(ai.mists_entr, ai.mists_entr_corteg, len(train_array))
 
     ai.show_graphics()
 
     ai.show_data()
     ai.save_data()
-    # '''
+    '''
