@@ -27,23 +27,23 @@ def sigmoid_deriv(x):
     return out
 
 
-def leaky_relu(x):
+def relu(x):
     out = np.copy(x)
-    out[out > 1] = 1. + 0.01*(out[out >= 1])
-    out[out < 0] *= 0.05
-    return x
-
-
-def leaky_relu_deriv(x):
-    out = np.copy(x)
-    out[(out >= 0) & (out <= 1)] = 1.
-    out[out > 1] = 0.01
-    out[out < 0] = 0.01
+    out[out < 0] = 0
+    out[out > 1] = 1
     return out
 
 
-activ_func = sigmoid
-activ_func_deriv = sigmoid_deriv
+def relu_deriv(x):
+    out = np.copy(x)
+    out[out < 0] = 0
+    out[out > 1] = 0
+    out[(out >= 0) & (out <= 1)] = 1
+    return out
+
+
+activ_func = relu
+activ_func_deriv = relu_deriv
 
 
 class AI:
@@ -474,7 +474,7 @@ if __name__ == "__main__":
 
     # Training
     # '''
-    num_iterat = 10000
+    num_iterat = 3000
     # may works even with a small iterat number (100-1k)
     # byt larger number will works better
     for i in range(num_iterat):
@@ -494,6 +494,6 @@ if __name__ == "__main__":
 
     ai.show_graphics()
 
-    # ai.show_data()
+    ai.show_data()
     ai.save_data()
     # '''
