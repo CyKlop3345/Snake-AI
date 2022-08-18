@@ -2,6 +2,7 @@ from constants import *
 
 import numpy as np
 import matplotlib.pyplot as plt
+import random
 import pygame
 from pathlib import Path
 
@@ -17,14 +18,16 @@ def quadratic_loss(y, y_right):
     return np.sum(np.power(y-y_right, 2))
 
 
+def cross_entropy_loss(y, y_right):
+    return -np.sum(y_right * np.log(y))
+
+
 def softmax(x):
+    # Activation func for output layers
+    # Converts a numeric array to фт array of probabilities
     out = np.exp(x)
     sum = np.sum(out)
     return out / sum
-
-
-def cross_entropy_loss(y, y_right):
-    return -np.sum(y_right * np.log(y))
 
 
 def sigmoid(x):
@@ -58,34 +61,33 @@ def relu_deriv(x):
     out[(out >= 0) & (out <= 1)] = 1
     return out
 
-
+# Select activation function (sigmoid or relu)
 activ_func = relu
 activ_func_deriv = relu_deriv
 
 
 class AI:
-    def __init__(self, surface):
+    def __init__(self, surface = None):
 
         # surface for drawing
         self.surface = surface
-
-        # Will generate new matrixes randomly (1) or get them from the file (0)
-        RANDOM_ARRAYS = 0
 
         # Training coefficient (CONST)
         self.ALPHA = 0.001
 
         # Mistakes (plotting)
         # Different types of mistakes analysis
-        # plot 1: Square loss
-        self.mists_sq = np.array([])
-        self.mists_sq_corteg = np.array([])
-        # plot 2: Cross Entropy loss
-        self.mists_entr = np.array([])
-        self.mists_entr_corteg = np.array([])
-        # plot 3: linear loss
+        # corteg -- the average mistake value fpr the training array
+        # plot 1: linear loss
         self.mists_lin = np.array([])
         self.mists_lin_corteg = np.array([])
+        # plot 2: Square loss
+        self.mists_sq = np.array([])
+        self.mists_sq_corteg = np.array([])
+        # plot 3: Cross Entropy loss
+        self.mists_entr = np.array([])
+        self.mists_entr_corteg = np.array([])
+
 
         # Neurons count (CONST)
         self.C_IN = 5   # 3 -- danger detector  (left, forward, right)
@@ -116,12 +118,13 @@ class AI:
         # File to collect arrays (with marks about layers size)
         self.arrays_filename = f"Arrays_{self.C_IN}_{self.C_H1}_{self.C_H2}_{self.C_OUT}"
         self.arrays_dir = Path.cwd() / 'Arrays_Data'
-        self.arrays_path = self.arrays_dir / self.arrays_filename
-        if not self.arrays_dir.is_dir():    # create folders
+        self.arrays_full_path = self.arrays_dir / self.arrays_filename
+        # create folders
+        if not self.arrays_dir.is_dir():
             self.arrays_dir.mkdir()
 
         # Check file exists
-        if (self.arrays_path.with_suffix(".npz")).is_file():
+        if (self.arrays_full_path.with_suffix(".npz")).is_file():
             # load weights and shifts data from the file
             self.load_data()
         else:
@@ -142,14 +145,17 @@ class AI:
 
     def run(self, _in):
         # Use AI for choosing next step
-        # using input data
+        # send input data
 
         # Setting input layer
-        self.l_in = np.array(_in).reshape(1,len(_in))
+        self.l_in = np.array(_in, dtype=float).reshape(1,len(_in))
         # Calculate output
         self.forward()
         # Choosing commad based on probability
         # self.choice = np.random.choice([-1,0,1], p=self.l_out[0])
+
+        # Choosing command based on max value
+        # convert [0, 1, 2] array into [-1, 0, 1]
         self.choice = np.argmax(self.l_out)-1
 
 
@@ -158,8 +164,8 @@ class AI:
         # using input and correct output data
         # (the correct output data is knows)
 
-        # setting in and correct out layers
-        self.l_in = np.array(_in).reshape(1,len(_in))
+        # setting input and correct output layers
+        self.l_in = np.array(_in, dtype=float).reshape(1,len(_in))
         self.l_out_right = np.array(_out).reshape(1,len(_out))
         # Calculate output, finding mistakes and correction matrixes
         self.forward()
@@ -197,13 +203,6 @@ class AI:
 
     def get_choice(self):
         # Get choice from the other source
-        # " -1 "    -- individual modification
-        # that convert (0, 1, 2) output array
-        # into (-1, 0, 1)
-        #
-        # -1 -- turn left,
-        # 1  -- turn right
-        # 0  -- go forfard
         return self.choice
 
 
@@ -235,7 +234,7 @@ class AI:
 
     def mutete_select(self, prev_score, cur_score):
         # score = collected_apple_count ^2 / time
-        # Select the better of non-mutated and mutated matrixes
+        # Selecting the better of non-mutated and mutated matrixes
         if (cur_score > prev_score):
             # Save mutation
             return
@@ -247,7 +246,7 @@ class AI:
         self.W_h2_out -= self.W_h2_out_mutate
         self.s_h2_out -= self.s_h2_out_mutate
 
-
+    # Mistakes calculation with different modification
     def calc_mist_lin(self):
         mist = linear_loss(self.l_out, self.l_out_right)
         self.mists_lin = np.append(self.mists_lin, mist)
@@ -259,11 +258,16 @@ class AI:
 
 
     def calc_mists_entr(self):
+        # Works normally only with classification tasks
+        # when in the correct output there is only one "1"
+        # without less numbers, like 0.5, 0.33 etc.
+        # [0, ..., 0, 1, 0, ..., 0]
         E = cross_entropy_loss(self.l_out, self.l_out_right)
         self.mists_entr = np.append(self.mists_entr, E)
 
 
     def calc_mist_corteg(self, last_count):
+        # corteg -- the average mistake value for the training array
         mist_lin = 0
         mist_sq = 0
         mist_entr = 0
@@ -280,7 +284,7 @@ class AI:
 
 
     def show_graphics(self):
-            # Graphics
+            # Graphics settings
             figure, axes = plt.subplots(2, 2, figsize=(8.96, 6.72))
             axes[0,0].set_title('Linear')
             axes[0,1].set_title('Square')
@@ -290,8 +294,8 @@ class AI:
             axes[1,0].set_ylim([0, 1])
             axes[1,1].set_ylim([0, 1])
 
+            # Check for the empty arrays
             if self.mists_sq_corteg.size == 0:
-                plt.show()
                 return
 
             # First graphic (linear analysis)
@@ -342,12 +346,12 @@ class AI:
                 color = 'white', transform=axes[1,0].transAxes,
                 bbox={'facecolor': 'blue', 'alpha': 0.85, 'pad': 4})
 
-
             # Showing
             plt.show()
 
 
     def show_data(self):
+        # Print weights and shifts into a consol
         print("\nW_in_h1\n", self.W_in_h1)
         print("\nW_h1_h2\n", self.W_h1_h2)
         print("\nW_h2_out\n", self.W_h2_out)
@@ -358,16 +362,14 @@ class AI:
 
     def save_data(self):
         # Save matrixes into the file
-        np.savez(self.arrays_path,
+        np.savez(self.arrays_full_path,
                     self.W_in_h1, self.W_h1_h2, self.W_h2_out,
                     self.s_in_h1, self.s_h1_h2, self.s_h2_out)
 
 
     def load_data(self):
         # load matrixes from the file
-        # file_path = f"{self.arrays_dir}\{self.arrays_filename}.npz"
-
-        file = np.load(self.arrays_path.with_suffix(".npz"))
+        file = np.load(self.arrays_full_path.with_suffix(".npz"))
         self.W_in_h1 = file['arr_0']
         self.W_h1_h2 = file['arr_1']
         self.W_h2_out = file['arr_2']
@@ -377,9 +379,7 @@ class AI:
 
 
     def set_draw_property(self):
-        # Nodes property
-        # node_distance = [20, 10] # distance between nodes (x, y)
-
+        # Set property for the networ visualization
         layers_sizes = [self.C_IN, self.C_H1, self.C_H2, self.C_OUT]
         layer_size_large = max(layers_sizes)
 
@@ -389,7 +389,6 @@ class AI:
         offset_layer = []               # centering of the layers
         for size in layers_sizes:
             offset_layer.append((layer_size_large - size) * 30)
-
 
         self.node_pos = np.array((  np.zeros((self.C_IN, 2), dtype=int),
                                     np.zeros((self.C_H1, 2), dtype=int),
@@ -415,20 +414,15 @@ class AI:
         self.node_pos[3][:,0] = offset[0] * 3 + offset_start[0]
         self.node_pos[3][:,1] = np.arange(self.C_OUT) * offset[1] + offset_start[1] + offset_layer[3]
 
-        self.node_size = 20
+        self.node_size = 20 # Circle size
 
         # Drawing connections
         weights = [sigmoid(self.W_in_h1), sigmoid(self.W_h1_h2), sigmoid(self.W_h2_out)]
         for layer in range(3):                          # cont of layers minus 1
             for node_1 in range(layers_sizes[layer]):         # "from" layer
                 for node_2 in range(layers_sizes[layer+1]):   # "to" layer
+                    # Choosing a  medium color
                     value = weights[layer][node_1][node_2]
-                    # if value <= 0.4:
-                    #     color = (255,0,0)
-                    # elif value > 0.6:
-                    #     color = (0,255,0)
-                    # else:
-                    #     color = (255,255,255)
                     color = CL_conect_active * value + CL_conect_inactive * (1-value)
                     pygame.draw.line(self.surface, color,
                                      self.node_pos[layer][node_1], self.node_pos[layer+1][node_2], 2)
@@ -441,12 +435,17 @@ class AI:
 
 
     def draw_update(self):
+        # Updating
         # Drawing nodes
         layers_sizes = [self.C_IN, self.C_H1, self.C_H2, self.C_OUT]
-        layers = [(self.l_in+1)/2, self.l_h1, self.l_h2, self.l_out]
-        layers[0][0,:3] -= 0.5
+        layers = [np.array(self.l_in, copy=True), self.l_h1, self.l_h2, self.l_out]
+        # convert [-1, 0, 1] into [0, 0.5, 1]
+        # for lasts 2 value (apple directions)
+        layers[0][0,3:] = (layers[0][0,3:]+1)/2
+
         for layer in range(4):
             for node in range(layers_sizes[layer]):
+                # Choosing a  medium color
                 value = layers[layer][0,node]
                 color = CL_node_active * value + CL_node_inactive * (1-value)
                 pygame.draw.circle(self.surface, color,
@@ -454,131 +453,134 @@ class AI:
 
 
 if __name__ == "__main__":
-    np.set_printoptions(precision=2, suppress=True)
-    ai = AI(None)
-    # ai.set_draw_property()
-                    # barrier|apple | choice            (l -- left, f -- forward, r -- right)
-                    #  l f r bf lr    l f r
-    train_array = [ ( (0,0,0, 0, 0), (0.33,0.33,0.33) ), # Good
+    np.set_printoptions(precision=2, suppress=True) # numpy print settings
+    ai = AI()
 
-                    ( (0,0,0, 1, 0), (0,1,0) ), # Good
-                    ( (0,0,0, 1, 1), (0,0.5,0.5) ), # Good
-                    ( (0,0,0, 0, 1), (0,0,1) ), # Good
-                    ( (0,0,0,-1, 1), (0,0,1) ), # Good
-                    ( (0,0,0,-1, 0), (0.5,0,0.5) ), # Good
-                    ( (0,0,0,-1,-1), (1,0,0) ), # Good
-                    ( (0,0,0, 0,-1), (1,0,0) ), # Good
-                    ( (0,0,0, 1,-1), (0.5,0.5,0) ), # Good
+                    # barrier|apple | choice       (l -- left, f -- forward, r -- right)
+                    #  l f r bf lr    l f r
+    train_array = [ ( (0,0,0, 0, 0), (0.33, 0.33, 0.33) ), # Good
+
+                    ( (0,0,0, 1, 0), (0,    1,    0   ) ), # Good
+                    ( (0,0,0, 1, 1), (0,    0.5,  0.5 ) ), # Good
+                    ( (0,0,0, 0, 1), (0,    0,    1   ) ), # Good
+                    ( (0,0,0,-1, 1), (0,    0,    1   ) ), # Good
+                    ( (0,0,0,-1, 0), (0.5,  0,    0.5 ) ), # Good
+                    ( (0,0,0,-1,-1), (1,    0,    0   ) ), # Good
+                    ( (0,0,0, 0,-1), (1,    0,    0   ) ), # Good
+                    ( (0,0,0, 1,-1), (0.5,  0.5,  0   ) ), # Good
                     # l f r bf lr    l f r
-                    ( (0,1,0, 0, 0), (0.5,0,0.5) ), # Good
+                    ( (0,1,0, 0, 0), (0.5,  0,    0.5 ) ), # Good
 
-                    ( (0,1,0, 1, 0), (0.5,0,0.5) ), # Good
-                    ( (0,1,0, 1, 1), (0,0,1) ), # Good
-                    ( (0,1,0, 0, 1), (0,0,1) ), # Good
-                    ( (0,1,0,-1, 1), (0,0,1) ), # Good
-                    ( (0,1,0,-1, 0), (0.5,0,0.5) ), # Good
-                    ( (0,1,0,-1,-1), (1,0,0) ), # Good
-                    ( (0,1,0, 0,-1), (1,0,0) ), # Good
-                    ( (0,1,0, 1,-1), (1,0,0) ), # Good
+                    ( (0,1,0, 1, 0), (0.5,  0,    0.5 ) ), # Good
+                    ( (0,1,0, 1, 1), (0,    0,    1   ) ), # Good
+                    ( (0,1,0, 0, 1), (0,    0,    1   ) ), # Good
+                    ( (0,1,0,-1, 1), (0,    0,    1   ) ), # Good
+                    ( (0,1,0,-1, 0), (0.5,  0,    0.5 ) ), # Good
+                    ( (0,1,0,-1,-1), (1,    0,    0   ) ), # Good
+                    ( (0,1,0, 0,-1), (1,    0,    0   ) ), # Good
+                    ( (0,1,0, 1,-1), (1,    0,    0   ) ), # Good
                     # l f r bf lr    l f r
-                    ( (1,0,0, 0, 0), (0,0.5,0.5) ), # Good
+                    ( (1,0,0, 0, 0), (0,    0.5,  0.5 ) ), # Good
 
-                    ( (1,0,0, 1, 0), (0,1,0) ), # Good
-                    ( (1,0,0, 1, 1), (0,0.5,0.5) ), # Good
-                    ( (1,0,0, 0, 1), (0,0,1) ), # Good
-                    ( (1,0,0,-1, 1), (0,0,1) ), # Good
-                    ( (1,0,0,-1, 0), (0,0,1) ), # Good
-                    ( (1,0,0,-1,-1), (0,1,0) ), # Good
-                    ( (1,0,0, 0,-1), (0,1,0) ), # Good
-                    ( (1,0,0, 1,-1), (0,1,0) ), # Good
+                    ( (1,0,0, 1, 0), (0,    1,    0   ) ), # Good
+                    ( (1,0,0, 1, 1), (0,    0.5,  0.5 ) ), # Good
+                    ( (1,0,0, 0, 1), (0,    0,    1   ) ), # Good
+                    ( (1,0,0,-1, 1), (0,    0,    1   ) ), # Good
+                    ( (1,0,0,-1, 0), (0,    0,    1   ) ), # Good
+                    ( (1,0,0,-1,-1), (0,    1,    0   ) ), # Good
+                    ( (1,0,0, 0,-1), (0,    1,    0   ) ), # Good
+                    ( (1,0,0, 1,-1), (0,    1,    0   ) ), # Good
                     # l f r bf lr    l f r
-                    ( (0,0,1, 0, 0), (0.5,0.5,0) ), # Good
+                    ( (0,0,1, 0, 0), (0.5,  0.5,  0   ) ), # Good
 
-                    ( (0,0,1, 1, 0), (0,1,0) ), # Good
-                    ( (0,0,1, 1, 1), (0,1,0) ), # Good
-                    ( (0,0,1, 0, 1), (0,1,0) ), # Good
-                    ( (0,0,1,-1, 1), (0,1,0) ), # Good
-                    ( (0,0,1,-1, 0), (1,0,0) ), # Good
-                    ( (0,0,1,-1,-1), (1,0,0) ), # Good
-                    ( (0,0,1, 0,-1), (1,0,0) ), # Good
-                    ( (0,0,1, 1,-1), (0.5,0.5,0) ), # Good
+                    ( (0,0,1, 1, 0), (0,    1,    0   ) ), # Good
+                    ( (0,0,1, 1, 1), (0,    1,    0   ) ), # Good
+                    ( (0,0,1, 0, 1), (0,    1,    0   ) ), # Good
+                    ( (0,0,1,-1, 1), (0,    1,    0   ) ), # Good
+                    ( (0,0,1,-1, 0), (1,    0,    0   ) ), # Good
+                    ( (0,0,1,-1,-1), (1,    0,    0   ) ), # Good
+                    ( (0,0,1, 0,-1), (1,    0,    0   ) ), # Good
+                    ( (0,0,1, 1,-1), (0.5,  0.5,  0   ) ), # Good
                     #  l f r bf lr    l f r
-                    ( (1,1,0, 0, 0), (0,0,1) ), # Good
+                    ( (1,1,0, 0, 0), (0,    0,    1) ), # Good
 
-                    ( (1,1,0, 1, 0), (0,0,1) ), # Good
-                    ( (1,1,0, 1, 1), (0,0,1) ), # Good
-                    ( (1,1,0, 0, 1), (0,0,1) ), # Good
-                    ( (1,1,0,-1, 1), (0,0,1) ), # Good
-                    ( (1,1,0,-1, 0), (0,0,1) ), # Good
-                    ( (1,1,0,-1,-1), (0,0,1) ), # Good
-                    ( (1,1,0, 0,-1), (0,0,1) ), # Good
-                    ( (1,1,0, 1,-1), (0,0,1) ), # Good
+                    ( (1,1,0, 1, 0), (0,    0,    1   ) ), # Good
+                    ( (1,1,0, 1, 1), (0,    0,    1   ) ), # Good
+                    ( (1,1,0, 0, 1), (0,    0,    1   ) ), # Good
+                    ( (1,1,0,-1, 1), (0,    0,    1   ) ), # Good
+                    ( (1,1,0,-1, 0), (0,    0,    1   ) ), # Good
+                    ( (1,1,0,-1,-1), (0,    0,    1   ) ), # Good
+                    ( (1,1,0, 0,-1), (0,    0,    1   ) ), # Good
+                    ( (1,1,0, 1,-1), (0,    0,    1   ) ), # Good
                     #  l f r bf lr    l f r
-                    ( (0,1,1, 0, 0), (1,0,0) ), # Good
+                    ( (0,1,1, 0, 0), (1,    0,    0   ) ), # Good
 
-                    ( (0,1,1, 1, 0), (1,0,0) ), # Good
-                    ( (0,1,1, 1, 1), (1,0,0) ), # Good
-                    ( (0,1,1, 0, 1), (1,0,0) ), # Good
-                    ( (0,1,1,-1, 1), (1,0,0) ), # Good
-                    ( (0,1,1,-1, 0), (1,0,0) ), # Good
-                    ( (0,1,1,-1,-1), (1,0,0) ), # Good
-                    ( (0,1,1, 0,-1), (1,0,0) ), # Good
-                    ( (0,1,1, 1,-1), (1,0,0) ), # Good
+                    ( (0,1,1, 1, 0), (1,    0,    0   ) ), # Good
+                    ( (0,1,1, 1, 1), (1,    0,    0   ) ), # Good
+                    ( (0,1,1, 0, 1), (1,    0,    0   ) ), # Good
+                    ( (0,1,1,-1, 1), (1,    0,    0   ) ), # Good
+                    ( (0,1,1,-1, 0), (1,    0,    0   ) ), # Good
+                    ( (0,1,1,-1,-1), (1,    0,    0   ) ), # Good
+                    ( (0,1,1, 0,-1), (1,    0,    0   ) ), # Good
+                    ( (0,1,1, 1,-1), (1,    0,    0   ) ), # Good
                     #  l f r bf lr    l f r
-                    ( (1,0,1, 0, 0), (0,1,0) ), # Good
+                    ( (1,0,1, 0, 0), (0,    1,    0   ) ), # Good
 
-                    ( (1,0,1, 1, 0), (0,1,0) ), # Good
-                    ( (1,0,1, 1, 1), (0,1,0) ), # Good
-                    ( (1,0,1, 0, 1), (0,1,0) ), # Good
-                    ( (1,0,1,-1, 1), (0,1,0) ), # Good
-                    ( (1,0,1,-1, 0), (0,1,0) ), # Good
-                    ( (1,0,1,-1,-1), (0,1,0) ), # Good
-                    ( (1,0,1, 0,-1), (0,1,0) ), # Good
-                    ( (1,0,1, 1,-1), (0,1,0) )  # Good
+                    ( (1,0,1, 1, 0), (0,    1,    0   ) ), # Good
+                    ( (1,0,1, 1, 1), (0,    1,    0   ) ), # Good
+                    ( (1,0,1, 0, 1), (0,    1,    0   ) ), # Good
+                    ( (1,0,1,-1, 1), (0,    1,    0   ) ), # Good
+                    ( (1,0,1,-1, 0), (0,    1,    0   ) ), # Good
+                    ( (1,0,1,-1,-1), (0,    1,    0   ) ), # Good
+                    ( (1,0,1, 0,-1), (0,    1,    0   ) ), # Good
+                    ( (1,0,1, 1,-1), (0,    1,    0   ) )  # Good
                     ]
 
     # Testing
-    # '''
+    '''
     for set in train_array:
         ai.run(set[0])
 
+        # Notification about wrong choice
         if set[1][ai.get_choice()+1] == 0:
             print("!!!!!          There is a fall                   !!!!!")
 
-        E = cross_entropy_loss(ai.get_output(), set[1])
-        sq = quadratic_loss(ai.get_output(), set[1])
+        # Calc mistakes
         lin = linear_loss(ai.get_output(), set[1])
+        sq = quadratic_loss(ai.get_output(), set[1])
+        E = cross_entropy_loss(ai.get_output(), set[1])
 
         print(  f"input: {set[0]}\n"
                 f"output: {set[1]}\n"
                 f"prob: {ai.get_output()}\n"
                 f"choice: {ai.get_choice()}\n"
-                f"E: {E :.2f}\n"
-                f"sq: {sq :.2f}\n"
                 f"lin {lin :.2f}\n"
+                f"sq: {sq :.2f}\n"
+                f"E: {E :.2f}\n"
                 )
 
     '''
 
     # Training
 
-    num_iterat = 10000
-    # may works even with a small iterat number (100-1k)
-    # byt larger number will works better
-    for i in range(num_iterat):
-        # random.shuffle(train_array) # mising training array
+    iterat_num = 1000
+    iterat_step = 1000  # percentage accuracy
+    # To the good training needs from 1.5k to several k-s
+    # Lasts 10 sec per 1k iterations
+    for i in range(iterat_num):
+        random.shuffle(train_array) # mixing training array
 
         for set in train_array:
             ai.training(set[0], set[1])
-            # Plotting (mists, propotion)
-            if i % (num_iterat/1000) == 0:
+            # Plotting (mists)
+            if i % (iterat_num/iterat_step) == 0:
+                ai.calc_mist_lin()
                 ai.calc_mist_sq()
                 ai.calc_mists_entr()
-                ai.calc_mist_lin()
 
         # Plotting (mist_corteges (average value of mistakes for array))
-        if i % (num_iterat/1000) == 0:
-            print(f'{100*i/num_iterat :.1f} %')     # Traning completion percentages
+        if i % (iterat_num/iterat_step) == 0:
+            print(f'{100*i/iterat_num :.1f} %')     # Traning completion percentages
             ai.calc_mist_corteg(len(train_array))
 
 
@@ -586,6 +588,6 @@ if __name__ == "__main__":
 
     ai.show_data()
     ai.save_data()
-    '''
+    # '''
     # ai.show_graphics()
     # ai.show_data()
