@@ -10,17 +10,15 @@ from snake import Snake
 from apple import Apple
 
 
+# Mistakes calculation
 def linear_loss(y, y_right):
     return np.sum(np.absolute(y-y_right))
-
 
 def quadratic_loss(y, y_right):
     return np.sum(np.power(y-y_right, 2))
 
-
 def cross_entropy_loss(y, y_right):
     return -np.sum(y_right * np.log(y))
-
 
 def softmax(x):
     # Activation func for output layers
@@ -30,6 +28,8 @@ def softmax(x):
     return out / sum
 
 
+
+# Activation funcs and derivatives
 def sigmoid(x):
     ''' Hint
     x == 0    => y = 0.5
@@ -40,19 +40,16 @@ def sigmoid(x):
     out = 1 / ( 1 + np.exp(-out) )
     return out
 
-
 def sigmoid_deriv(x):
     out = np.copy(x)
     out = sigmoid(out) * (1-sigmoid(out))
     return out
-
 
 def relu(x):
     out = np.copy(x)
     out[out < 0] = 0
     out[out > 1] = 1
     return out
-
 
 def relu_deriv(x):
     out = np.copy(x)
@@ -61,19 +58,39 @@ def relu_deriv(x):
     out[(out >= 0) & (out <= 1)] = 1
     return out
 
+def leaky_relu(x):
+    out = np.copy(x)
+    out[out < 0] *= 0.01
+    out[out > 1] = 1 + 0.01*(out[out > 1]-1)
+    return out
+
+def leaky_relu_deriv(x):
+    out = np.copy(x)
+    out[out < 0] = 0.01
+    out[out > 1] = 0.01
+    out[(out >= 0) & (out <= 1)] = 1
+    return out
+
 # Select activation function (sigmoid or relu)
-activ_func = relu
-activ_func_deriv = relu_deriv
+activ_func = leaky_relu
+activ_func_deriv = leaky_relu_deriv
+
 
 
 class AI:
-    def __init__(self, surface = None):
+    # Initialization
+    def __init__(self, surface=None):
 
         # surface for drawing
         self.surface = surface
 
+        # Numpy settings
+        np.set_printoptions(precision=2, suppress=True) # numpy print settings
+
+
         # Training coefficient (CONST)
         self.ALPHA = 0.001
+
 
         # Mistakes (plotting)
         # Different types of mistakes analysis
@@ -92,9 +109,10 @@ class AI:
         # Neurons count (CONST)
         self.C_IN = 5   # 3 -- danger detector  (left, forward, right)
                         # 2 -- apple direction  (forward_or_backwrd, left_or_right)
-        self.C_H1 = 2
-        self.C_H2 = 2
+        self.C_H1 = 4
+        self.C_H2 = 4
         self.C_OUT = 3  # 3 next direction (turning left, right or step forward)
+
 
         # Layers of Neurons (vector)
         self.l_in = np.zeros((1, self.C_IN))
@@ -105,15 +123,18 @@ class AI:
         self.l_out = np.zeros((1, self.C_OUT))
         self.choice = -1
 
+
         # Weights (matrix)
         self.W_in_h1 = None
         self.W_h1_h2 = None
         self.W_h2_out = None
 
+
         # Shift (vector)
         self.s_in_h1 = None
         self.s_h1_h2 = None
         self.s_h2_out = None
+
 
         # File to collect arrays (with marks about layers size)
         self.arrays_filename = f"Arrays_{self.C_IN}_{self.C_H1}_{self.C_H2}_{self.C_OUT}"
@@ -122,6 +143,7 @@ class AI:
         # create folders
         if not self.arrays_dir.is_dir():
             self.arrays_dir.mkdir()
+
 
         # Check file exists
         if (self.arrays_full_path.with_suffix(".npz")).is_file():
@@ -137,12 +159,15 @@ class AI:
             self.s_h1_h2 = np.random.uniform(-1, 1, (1, self.C_H2))
             self.s_h2_out = np.random.uniform(-1, 1, (1, self.C_OUT))
 
+
         # Mistakes
         self.m_h1 = np.zeros((1, self.C_H1))
         self.m_h2 = np.zeros((1, self.C_H2))
         self.m_out = np.zeros((1, self.C_OUT))
 
 
+
+    # Public funcs
     def run(self, _in):
         # Use AI for choosing next step
         # send input data
@@ -157,7 +182,6 @@ class AI:
         # Choosing command based on max value
         # convert [0, 1, 2] array into [-1, 0, 1]
         self.choice = np.argmax(self.l_out)-1
-
 
     def training(self, _in, _out):
         # AI training
@@ -174,6 +198,7 @@ class AI:
         self.update()
 
 
+    # Private funcs
     def forward(self):
         # Finding output
         self.l_h1_row = self.l_in @ self.W_in_h1 + self.s_in_h1
@@ -183,13 +208,11 @@ class AI:
         self.l_out_row = self.l_h2_row @ self.W_h2_out + self.s_h2_out
         self.l_out = softmax(self.l_out_row)
 
-
     def backward(self):
         # Finding mistakes
         self.m_out = self.l_out - self.l_out_right
         self.m_h2 = self.m_out @ self.W_h2_out.T * activ_func_deriv(self.l_h2)
         self.m_h1 = self.m_h2 @ self.W_h1_h2.T * activ_func_deriv(self.l_h1)
-
 
     def update(self):
         # Updating weights and shiftings
@@ -201,10 +224,10 @@ class AI:
         self.s_h2_out -= self.ALPHA * np.sum(self.m_out, axis=0, keepdims=True)
 
 
+    # Getters
     def get_choice(self):
         # Get choice from the other source
         return self.choice
-
 
     def get_output(self):
         # Get output layer values
@@ -212,50 +235,14 @@ class AI:
         return self.l_out
 
 
-    def mutate(self):
-        # Random mutate
-
-        # Difference of changed matrixes (Random, but small value)
-        self.W_in_h1_mutate = np.random.uniform(-0.1, 0.1, self.W_in_h1.shape)
-        self.s_in_h1_mutate = np.random.uniform(-0.1, 0.1, self.s_in_h1)
-        self.W_h1_h2_mutate = np.random.uniform(-0.1, 0.1, self.W_h1_h2)
-        self.s_h1_h2_mutate = np.random.uniform(-0.1, 0.1, self.s_h1_h2)
-        self.W_h2_out_mutate = np.random.uniform(-0.1, 0.1, self.W_h2_out)
-        self.s_h2_out_mutate = np.random.uniform(-0.1, 0.1, self.s_h2_out)
-
-        # New matrixes (prev matrixes plus difference)
-        self.W_in_h1 += self.W_in_h1_mutate
-        self.s_in_h1 += self.s_in_h1_mutate
-        self.W_h1_h2 += self.W_h1_h2_mutate
-        self.s_h1_h2 += self.s_h1_h2_mutate
-        self.W_h2_out += self.W_h2_out_mutate
-        self.s_h2_out += self.s_h2_out_mutate
-
-
-    def mutete_select(self, prev_score, cur_score):
-        # score = collected_apple_count ^2 / time
-        # Selecting the better of non-mutated and mutated matrixes
-        if (cur_score > prev_score):
-            # Save mutation
-            return
-        # Undo matrixes change
-        self.W_in_h1 -= self.W_in_h1_mutate
-        self.s_in_h1 -= self.s_in_h1_mutate
-        self.W_h1_h2 -= self.W_h1_h2_mutate
-        self.s_h1_h2 -= self.s_h1_h2_mutate
-        self.W_h2_out -= self.W_h2_out_mutate
-        self.s_h2_out -= self.s_h2_out_mutate
-
     # Mistakes calculation with different modification
     def calc_mist_lin(self):
         mist = linear_loss(self.l_out, self.l_out_right)
         self.mists_lin = np.append(self.mists_lin, mist)
 
-
     def calc_mist_sq(self):
         mist = quadratic_loss(self.l_out, self.l_out_right)
         self.mists_sq = np.append(self.mists_sq, mist)
-
 
     def calc_mists_entr(self):
         # Works normally only with classification tasks
@@ -264,7 +251,6 @@ class AI:
         # [0, ..., 0, 1, 0, ..., 0]
         E = cross_entropy_loss(self.l_out, self.l_out_right)
         self.mists_entr = np.append(self.mists_entr, E)
-
 
     def calc_mist_corteg(self, last_count):
         # corteg -- the average mistake value for the training array
@@ -283,6 +269,7 @@ class AI:
         self.mists_entr_corteg = np.append(self.mists_entr_corteg, mist_entr)
 
 
+    # Debugging data
     def show_graphics(self):
             # Graphics settings
             figure, axes = plt.subplots(2, 2, figsize=(8.96, 6.72))
@@ -349,7 +336,6 @@ class AI:
             # Showing
             plt.show()
 
-
     def show_data(self):
         # Print weights and shifts into a consol
         print("\nW_in_h1\n", self.W_in_h1)
@@ -360,12 +346,13 @@ class AI:
         print("\ns_h2_out\n", self.s_h2_out)
 
 
+    # Data manipulation
     def save_data(self):
+        print("!!!!!")
         # Save matrixes into the file
         np.savez(self.arrays_full_path,
                     self.W_in_h1, self.W_h1_h2, self.W_h2_out,
                     self.s_in_h1, self.s_h1_h2, self.s_h2_out)
-
 
     def load_data(self):
         # load matrixes from the file
@@ -378,6 +365,7 @@ class AI:
         self.s_h2_out = file['arr_5']
 
 
+    # AI visualization
     def set_draw_property(self):
         # Set property for the networ visualization
         layers_sizes = [self.C_IN, self.C_H1, self.C_H2, self.C_OUT]
@@ -427,22 +415,14 @@ class AI:
                     pygame.draw.line(self.surface, color,
                                      self.node_pos[layer][node_1], self.node_pos[layer+1][node_2], 2)
 
-        # Drawing nodes
-        for layer in range(4):
-            for node in range(layers_sizes[layer]):
-                pygame.draw.circle(self.surface, CL_node_inactive,
-                                    self.node_pos[layer][node], self.node_size)
-
-
     def draw_update(self):
         # Updating
         # Drawing nodes
         layers_sizes = [self.C_IN, self.C_H1, self.C_H2, self.C_OUT]
-        layers = [np.array(self.l_in, copy=True), self.l_h1, self.l_h2, self.l_out]
+        layers = [np.array(self.l_in, copy=True), relu(self.l_h1), relu(self.l_h2), relu(self.l_out)]
         # convert [-1, 0, 1] into [0, 0.5, 1]
         # for lasts 2 value (apple directions)
         layers[0][0,3:] = (layers[0][0,3:]+1)/2
-
         for layer in range(4):
             for node in range(layers_sizes[layer]):
                 # Choosing a  medium color
@@ -452,12 +432,13 @@ class AI:
                                     self.node_pos[layer][node], self.node_size)
 
 
+# Start point
 if __name__ == "__main__":
-    np.set_printoptions(precision=2, suppress=True) # numpy print settings
+
     ai = AI()
 
                     # barrier|apple | choice       (l -- left, f -- forward, r -- right)
-                    #  l f r bf lr    l f r
+                    #  l f r bf lr    l     f     r
     train_array = [ ( (0,0,0, 0, 0), (0.33, 0.33, 0.33) ), # Good
 
                     ( (0,0,0, 1, 0), (0,    1,    0   ) ), # Good
@@ -468,7 +449,7 @@ if __name__ == "__main__":
                     ( (0,0,0,-1,-1), (1,    0,    0   ) ), # Good
                     ( (0,0,0, 0,-1), (1,    0,    0   ) ), # Good
                     ( (0,0,0, 1,-1), (0.5,  0.5,  0   ) ), # Good
-                    # l f r bf lr    l f r
+                    #  l f r bf lr    l     f     r
                     ( (0,1,0, 0, 0), (0.5,  0,    0.5 ) ), # Good
 
                     ( (0,1,0, 1, 0), (0.5,  0,    0.5 ) ), # Good
@@ -479,7 +460,7 @@ if __name__ == "__main__":
                     ( (0,1,0,-1,-1), (1,    0,    0   ) ), # Good
                     ( (0,1,0, 0,-1), (1,    0,    0   ) ), # Good
                     ( (0,1,0, 1,-1), (1,    0,    0   ) ), # Good
-                    # l f r bf lr    l f r
+                    #  l f r bf lr    l     f     r
                     ( (1,0,0, 0, 0), (0,    0.5,  0.5 ) ), # Good
 
                     ( (1,0,0, 1, 0), (0,    1,    0   ) ), # Good
@@ -490,7 +471,7 @@ if __name__ == "__main__":
                     ( (1,0,0,-1,-1), (0,    1,    0   ) ), # Good
                     ( (1,0,0, 0,-1), (0,    1,    0   ) ), # Good
                     ( (1,0,0, 1,-1), (0,    1,    0   ) ), # Good
-                    # l f r bf lr    l f r
+                    #  l f r bf lr    l     f     r
                     ( (0,0,1, 0, 0), (0.5,  0.5,  0   ) ), # Good
 
                     ( (0,0,1, 1, 0), (0,    1,    0   ) ), # Good
@@ -501,7 +482,7 @@ if __name__ == "__main__":
                     ( (0,0,1,-1,-1), (1,    0,    0   ) ), # Good
                     ( (0,0,1, 0,-1), (1,    0,    0   ) ), # Good
                     ( (0,0,1, 1,-1), (0.5,  0.5,  0   ) ), # Good
-                    #  l f r bf lr    l f r
+                    #  l f r bf lr    l     f     r
                     ( (1,1,0, 0, 0), (0,    0,    1) ), # Good
 
                     ( (1,1,0, 1, 0), (0,    0,    1   ) ), # Good
@@ -512,7 +493,7 @@ if __name__ == "__main__":
                     ( (1,1,0,-1,-1), (0,    0,    1   ) ), # Good
                     ( (1,1,0, 0,-1), (0,    0,    1   ) ), # Good
                     ( (1,1,0, 1,-1), (0,    0,    1   ) ), # Good
-                    #  l f r bf lr    l f r
+                    #  l f r bf lr    l     f     r
                     ( (0,1,1, 0, 0), (1,    0,    0   ) ), # Good
 
                     ( (0,1,1, 1, 0), (1,    0,    0   ) ), # Good
@@ -523,7 +504,7 @@ if __name__ == "__main__":
                     ( (0,1,1,-1,-1), (1,    0,    0   ) ), # Good
                     ( (0,1,1, 0,-1), (1,    0,    0   ) ), # Good
                     ( (0,1,1, 1,-1), (1,    0,    0   ) ), # Good
-                    #  l f r bf lr    l f r
+                    #  l f r bf lr    l     f     r
                     ( (1,0,1, 0, 0), (0,    1,    0   ) ), # Good
 
                     ( (1,0,1, 1, 0), (0,    1,    0   ) ), # Good
@@ -563,7 +544,7 @@ if __name__ == "__main__":
 
     # Training
 
-    iterat_num = 1000
+    iterat_num = 1500
     iterat_step = 1000  # percentage accuracy
     # To the good training needs from 1.5k to several k-s
     # Lasts 10 sec per 1k iterations

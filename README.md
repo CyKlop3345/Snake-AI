@@ -25,9 +25,8 @@ but you need manually change option "self.RUNNING_AI" in App.py from 1 to 0
   - [X] Neuron network graph
   - [ ] Stats of the game (apples collected, time, etc.)
 - Expand the field of the snake's view:
-  - [ ] Add more input neurons
-  - [ ] Create mutetation system
-  - [ ] Create artificial selection system
+  - [ ] Add more input neurons: 5x5 vision field
+  - [ ] create learning algorithm
 
 
 #### Pics:

@@ -4,6 +4,7 @@ import numpy as np
 from constants import *
 
 class Snake:
+
     def __init__(self, surface):
         # To draw from this file
         self.surface = surface
@@ -51,55 +52,30 @@ class Snake:
         -1 -- finding dificulty (death)
         '''
 
+
+    # movement
     def moveForward(self):
-        # Look exception
+        # Check exception
         if self.direction == -1:
             return
+
         # Move secondary segments
         for i in range(self.length-1, 0, -1):
             self.pos[i][0] = self.pos[i-1][0]
             self.pos[i][1] = self.pos[i-1][1]
+
         # Move main segment
         self.pos[0] += self.local[0,0]
-        # Check for the death
+
+        # Check for death and eating
         self.checkDeath()
         self.checkEating()
-
-
-    def calc_local_cords(self):
-        ''' Hint in the init() '''
-        if self.direction == -1:
-            return
-        self.local = np.array([ [ (0,-1), (1,0) ],
-                                [ (-1,0), (0,1) ] ])
-
-        self.local_boards = np.array([[-1, GRID_RES[0]],
-                                      [-1, GRID_RES[1]] ])
-
-        for i in range(self.direction):
-            # turnung matrix left
-            self.local = np.rot90(self.local)
-            self.local_boards = np.rot90(self.local_boards)
-
-
-    def draw(self):
-        # Drawing all segments. Main has other color
-        for pos in self.pos:
-            if (pos == self.pos[0]).all():
-                color = CL_HEAD
-            else:
-                color = CL_WHITE
-
-            pygame.draw.rect(self.surface, color,
-                            (pos[0]*CELL_SIZE +1, pos[1]*CELL_SIZE +1, CELL_SIZE-2, CELL_SIZE-2))
-
 
     def setDirection(self, direction):
         self.direction = direction
         if direction == -1:
             return
         self.calc_local_cords()
-
 
     def turn(self, turn):
         # -1 -- left
@@ -113,24 +89,8 @@ class Snake:
         self.local_boards = np.rot90(self.local_boards, turn)
 
 
-    def setApples(self, apples):
-        self.apples = apples
 
-
-    def getHeadPos(self):
-        return self.pos[0]
-
-
-    def getSegmPos(self):
-        return self.pos
-
-
-    def getStatus(self):
-        status = self.status
-        self.status = 0
-        return status
-
-
+    # Checkers
     def checkDeath(self):
         # Check for the death
             # self-eating
@@ -141,7 +101,6 @@ class Snake:
         if self.pos[0][0] < 0 or self.pos[0][0] > GRID_RES[0]-1 or self.pos[0][1] < 0 or self.pos[0][1] > GRID_RES[1]-1:
             self.status = -1
 
-
     def checkEating(self):
         for apple in self.apples:
             if (self.pos[0] == apple.getPos()).all():
@@ -151,49 +110,63 @@ class Snake:
                 self.status = 1
 
 
-    def get_input_layer(self):
+
+    # Private funcs
+    def calc_local_cords(self):
+        # Convert global cords into local
+        ''' Hint in the init() '''
+        if self.direction == -1:
+            return
+
+        self.local = np.array([ [ (0,-1), (1,0) ],
+                                [ (-1,0), (0,1) ] ])
+
+        self.local_boards = np.array([[-1, GRID_RES[0]],
+                                      [-1, GRID_RES[1]] ])
+
+        for i in range(self.direction):
+            # turnung matrix left
+            self.local = np.rot90(self.local)
+            self.local_boards = np.rot90(self.local_boards)
+
+    def calc_input_layer(self):
         if self.direction == -1:
             self.setDirection(0)
 
         # Reset input layer
-        input_layer = [0,0,0,0,0]
+        self.input_layer = [0,0,0,0,0]
         ''' Hint
         input_layer indexes:
         0 -- barrier worfard
         1 -- barrier leftside
         2 -- barrier rightside
         3 -- apple: -1 -- backward
-                    0  -- none
+                    0  -- middle
                     1  -- forward
         4 -- apple: -1 -- left
-                    0  -- none
+                    0  -- middle
                     1  -- right
         '''
 
         # Check for barrier (self segments or boundary)
         # Self segments
+        b_break = False
+        nodes = [1, 2, 0]   # forward, right, left
+        for i in range(3):  # forward, right, left
+            node = nodes[i]
+            # Self segments
+            for snakeSegment in self.pos:
+                if ((self.pos[0] + self.local.reshape(-1, 2)[i]) == snakeSegment).all():
+                    self.input_layer[node] = 1
+                    b_break = True
+                    break
+            if b_break == True:
+                continue
 
-        for snakeSegment in self.pos:
-            # Forward
-            if ([self.pos[0] + self.local[0,0]] == snakeSegment).all():
-                input_layer[1] = 1
-            # Left
-            if ([self.pos[0] + self.local[1,0]] == snakeSegment).all():
-                input_layer[0] = 1
-            # Right
-            if ([self.pos[0] + self.local[0,1]] == snakeSegment).all():
-                input_layer[2] = 1
+            # Boundary
+            if ((self.pos[0] + self.local.reshape(-1)[i]) == self.local_boards[0,0]).any():
+                self.input_layer[node] = 1
 
-        # Boundary
-        # Forward
-        if ((self.pos[0] + self.local[0,0]) == self.local_boards[0,0]).any():
-            input_layer[1] = 1
-        # Left
-        if ((self.pos[0] + self.local[1,0]) == self.local_boards[1,0]).any():
-            input_layer[0] = 1
-        # Right
-        if ((self.pos[0] + self.local[0,1])[0] == self.local_boards[0,1]).any():
-            input_layer[2] = 1
 
         # Apple finding
         # finding nearest apple
@@ -223,15 +196,51 @@ class Snake:
 
         # Forward
         if local_apple[0,0] == 1:
-            input_layer[3] = 1
+            self.input_layer[3] = 1
         # Backward
         elif local_apple[1,1] == 1:
-            input_layer[3] = -1
+            self.input_layer[3] = -1
         # Left
         if local_apple[1,0] == 1:
-            input_layer[4] = -1
+            self.input_layer[4] = -1
         # Right
         elif local_apple[0,1] == 1:
-            input_layer[4] = 1
+            self.input_layer[4] = 1
 
-        return input_layer
+
+
+    # Drawing
+    def draw(self):
+        # Drawing all segments. The head has an other color
+        for pos in self.pos:
+            if (pos == self.pos[0]).all():
+                color = CL_HEAD
+            else:
+                color = CL_WHITE
+
+            pygame.draw.rect(self.surface, color,
+                            (pos[0]*CELL_SIZE +1, pos[1]*CELL_SIZE +1, CELL_SIZE-2, CELL_SIZE-2))
+
+
+
+    # Setters
+    def setApples(self, apples):
+        # Apple array
+        self.apples = apples
+
+
+
+    # Getters
+    def getHeadPos(self):
+        return self.pos[0]
+
+    def getSegmPos(self):
+        return self.pos
+
+    def getStatus(self):
+        status = self.status
+        self.status = 0
+        return status
+
+    def get_input_layer(self):
+        return self.input_layer

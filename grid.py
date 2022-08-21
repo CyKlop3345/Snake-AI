@@ -3,11 +3,14 @@ from constants import *
 
 
 class Grid:
+    
+    # Initialization
     def __init__(self, surface):
-        # To draw from this file
+        # Surface to draw on
         self.surface = surface
 
 
+    # Drawing grid (game board)
     def draw(self):
         # Drawing grid
         for x in range(GRID_RES[0]):
