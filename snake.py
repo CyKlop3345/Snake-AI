@@ -27,6 +27,7 @@ class Snake:
 
         self.local = None
         self.local_boards = None
+        self.local_vision = None
         self.calc_local_cords()
         ''' Hint: directions (from world to local):
         local = [[forward   right   ]
@@ -43,7 +44,17 @@ class Snake:
 
         3 -- left   :   (-1, 0) ( 0,-1)
                         ( 0, 1) ( 1, 0)
+
+
+        look at 1 cell left, forward, right
+        local_vision = [left, forward, right]
+                     = [local[1,0], local[0,0], local[0,1]]
+
+
+        local boards =
         '''
+
+
 
         self.status = 0
         ''' Hint: status:
@@ -87,7 +98,8 @@ class Snake:
         # Turn matrix left
         self.local = np.rot90(self.local, turn)
         self.local_boards = np.rot90(self.local_boards, turn)
-
+        # calc local vision
+        self.local_vision = np.array([self.local[1,0], self.local[0,0], self.local[0,1] ])
 
 
     # Checkers
@@ -124,10 +136,11 @@ class Snake:
         self.local_boards = np.array([[-1, GRID_RES[0]],
                                       [-1, GRID_RES[1]] ])
 
-        for i in range(self.direction):
-            # turnung matrix left
-            self.local = np.rot90(self.local)
-            self.local_boards = np.rot90(self.local_boards)
+        # turnung matrix left
+        self.local = np.rot90(self.local, self.direction)
+        self.local_boards = np.rot90(self.local_boards, self.direction)
+
+        self.local_vision = np.array([self.local[1,0], self.local[0,0], self.local[0,1] ])
 
     def calc_input_layer(self):
         if self.direction == -1:
@@ -151,21 +164,19 @@ class Snake:
         # Check for barrier (self segments or boundary)
         # Self segments
         b_break = False
-        nodes = [1, 2, 0]   # forward, right, left
-        for i in range(3):  # forward, right, left
-            node = nodes[i]
+        for i in range(self.local_vision.shape[0]):
             # Self segments
             for snakeSegment in self.pos:
-                if ((self.pos[0] + self.local.reshape(-1, 2)[i]) == snakeSegment).all():
-                    self.input_layer[node] = 1
+                if ((self.pos[0] + self.local_vision[i]) == snakeSegment).all():
+                    self.input_layer[i] = 1
                     b_break = True
                     break
             if b_break == True:
                 continue
 
             # Boundary
-            if ((self.pos[0] + self.local.reshape(-1)[i]) == self.local_boards[0,0]).any():
-                self.input_layer[node] = 1
+            if ((self.pos[0] + self.local_vision[i]) == self.local_boards[0,0]).any():
+                self.input_layer[i] = 1
 
 
         # Apple finding
